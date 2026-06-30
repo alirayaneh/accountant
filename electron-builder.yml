@@ -2,10 +2,14 @@ appId: com.easystock.accountant
 productName: EasyStock Accountant
 artifactName: "${productName}-${version}-${os}-${arch}.${ext}"
 asar: true
+asarIntegrity: true
+compression: maximum
 directories:
   output: release
+extraMetadata:
+  main: electron-dist/main.cjs
 files:
-  - electron/main.cjs
+  - electron-dist/main.cjs
   - package.json
 extraResources:
   - from: .next/standalone
