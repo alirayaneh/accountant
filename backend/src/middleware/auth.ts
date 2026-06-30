@@ -106,6 +106,8 @@ export const optionalAuth: RequestHandler = async (
                         role: user.role,
                         ownerId: user.ownerId,
                         employeeId: user.employeeId,
+                        impersonating: Boolean(decoded.impersonating),
+                        impersonatorId: decoded.impersonatorId,
                     };
                 }
             }
