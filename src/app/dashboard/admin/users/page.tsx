@@ -12,12 +12,19 @@ import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { PageHeader } from '@/components/layout/page-header';
+import { IS_ELECTRON_BUILD } from '@/lib/build-config';
+import { verifyAdminPanelAccess } from '@/lib/license/gates/admin-users';
 
 export default function AdminUsersPage() {
     const { db, user, authLoading } = useAppContext();
     const [users, setUsers] = useState<UserProfile[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
+
+    useEffect(() => {
+        if (!IS_ELECTRON_BUILD) return;
+        verifyAdminPanelAccess().catch(() => {});
+    }, []);
 
     useEffect(() => {
         if (authLoading) return;

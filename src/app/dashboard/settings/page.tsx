@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Trash2, PlusCircle, Users, Database, Loader2, Store, Banknote, Tag, Pencil } from 'lucide-react';
+import { Trash2, PlusCircle, Users, Database, Loader2, Store, Banknote, Tag, Pencil, KeyRound } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -33,6 +33,8 @@ import { PageHeader } from '@/components/layout/page-header';
 import { useAppContext } from '@/components/app-provider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { StorageType } from '@/components/app-provider';
+import { ALLOWED_STORAGE_TYPES, IS_ELECTRON_BUILD } from '@/lib/build-config';
+import { LicenseSettingsForm } from '@/components/license/license-settings-form';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getLocalApiURL, getRemoteApiURL } from '@/lib/api-url';
@@ -541,7 +543,7 @@ function StorageSettingsForm() {
   const storageOptions = [
     { value: 'sqlite' as const, label: 'SQLite (محلی)', desc: 'Backend API + SQLite — قابل حمل' },
     { value: 'online' as const, label: 'آنلاین (سرور)', desc: 'Backend API + MySQL روی سرور' },
-  ];
+  ].filter((option) => ALLOWED_STORAGE_TYPES.includes(option.value));
 
   useEffect(() => {
     setPendingStorageType(storageType);
@@ -725,8 +727,25 @@ function StorageSettingsForm() {
 }
 
 export default function SettingsPage() {
-  const { isLoading, user } = useAppContext();
+  const { isLoading, user, isStorageConfigurable } = useAppContext();
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState('general');
+
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    if (tab === 'license') {
+      setActiveTab('license');
+    }
+  }, []);
+
+  const visibleTabs = [
+    { value: 'general', label: 'عمومی', icon: Store },
+    ...(isStorageConfigurable ? [{ value: 'data-storage', label: 'ذخیره‌سازی', icon: Database }] : []),
+    ...(IS_ELECTRON_BUILD ? [{ value: 'license', label: 'لایسنس', icon: KeyRound }] : []),
+    { value: 'exchange-rates', label: 'نرخ‌های ارز', icon: Banknote },
+    { value: 'cost-titles', label: 'عناوین هزینه', icon: Tag },
+    { value: 'employees', label: 'کارمندان', icon: Users },
+  ];
 
   useEffect(() => {
     if (user?.role === 'employee') {
@@ -753,17 +772,19 @@ export default function SettingsPage() {
   return (
     <div>
       <PageHeader title="تنظیمات" description="پیکربندی فروشگاه، ارز، ذخیره‌سازی و کارمندان" />
-      <Tabs defaultValue="general" dir="rtl">
-        <TabsList className="grid w-full grid-cols-5 rounded-xl bg-white/5">
-          <TabsTrigger value="general" className="rounded-lg"><Store className="ms-1 h-4 w-4" />عمومی</TabsTrigger>
-          <TabsTrigger value="data-storage" className="rounded-lg"><Database className="ms-1 h-4 w-4" />ذخیره‌سازی</TabsTrigger>
-          <TabsTrigger value="exchange-rates" className="rounded-lg"><Banknote className="ms-1 h-4 w-4" />نرخ‌های ارز</TabsTrigger>
-          <TabsTrigger value="cost-titles" className="rounded-lg"><Tag className="ms-1 h-4 w-4" />عناوین هزینه</TabsTrigger>
-          <TabsTrigger value="employees" className="rounded-lg"><Users className="ms-1 h-4 w-4" />کارمندان</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl">
+        <TabsList className={`grid w-full grid-cols-${visibleTabs.length} rounded-xl bg-white/5`} style={{ gridTemplateColumns: `repeat(${visibleTabs.length}, minmax(0, 1fr))` }}>
+          {visibleTabs.map((tab) => (
+            <TabsTrigger key={tab.value} value={tab.value} className="rounded-lg">
+              <tab.icon className="ms-1 h-4 w-4" />
+              {tab.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
         <TabsContent value="general">
           <AppSettingsForm />
         </TabsContent>
+        {isStorageConfigurable && (
         <TabsContent value="data-storage">
           <Card variant="glass">
             <CardHeader>
@@ -777,6 +798,12 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+        )}
+        {IS_ELECTRON_BUILD && (
+        <TabsContent value="license">
+          <LicenseSettingsForm />
+        </TabsContent>
+        )}
         <TabsContent value="exchange-rates">
           <Card variant="glass">
             <CardHeader>

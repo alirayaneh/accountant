@@ -49,6 +49,8 @@ import { CURRENCY_SYMBOLS } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { PageHeader } from '@/components/layout/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
+import { IS_ELECTRON_BUILD } from '@/lib/build-config';
+import { verifyPaymentModule } from '@/lib/license/gates/payments';
 import {
   Select,
   SelectContent,
@@ -678,6 +680,11 @@ export default function PaymentsPage() {
   const [dateTo, setDateTo] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (!IS_ELECTRON_BUILD) return;
+    verifyPaymentModule().catch(() => {});
+  }, []);
 
   const fetchPayments = async () => {
     if (!db) return;

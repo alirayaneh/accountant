@@ -61,6 +61,8 @@ import { PersianDatePicker } from '@/components/persian-date';
 import { ProductMediaManager } from '@/components/product-media-manager';
 import type { ProductMedia } from '@/lib/types';
 import { PageHeader } from '@/components/layout/page-header';
+import { IS_ELECTRON_BUILD } from '@/lib/build-config';
+import { ensurePosLicense } from '@/lib/license/gates/record-sale';
 
 const paymentMethodLabels: Record<PaymentMethod, string> = {
     CASH: 'نقد',
@@ -262,6 +264,11 @@ export default function RecordSalePage() {
   const [exchangeRates, setExchangeRates] = useState<ExchangeRate[]>([]);
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [previewProduct, setPreviewProduct] = useState<Product | null>(null);
+
+  useEffect(() => {
+    if (!IS_ELECTRON_BUILD) return;
+    ensurePosLicense().catch(() => {});
+  }, []);
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);

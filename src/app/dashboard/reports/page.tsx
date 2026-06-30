@@ -19,6 +19,8 @@ import { PageHeader } from '@/components/layout/page-header';
 import { StatCard } from '@/components/ui/stat-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatToman } from '@/lib/format';
+import { IS_ELECTRON_BUILD } from '@/lib/build-config';
+import { checkAnalyticsEntitlement } from '@/lib/license/gates/reports';
 
 type TimeRange = 'all' | 'last_year' | 'this_year' | 'last_month' | 'this_month' | 'last_week' | 'this_week';
 
@@ -40,6 +42,11 @@ export default function ReportsPage() {
   const { toast } = useToast();
   const { db, isLoading, setGlobalLoading } = useAppContext();
   const [timeRange, setTimeRange] = useState<TimeRange>('this_month');
+
+  useEffect(() => {
+    if (!IS_ELECTRON_BUILD) return;
+    checkAnalyticsEntitlement().catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!db) return;

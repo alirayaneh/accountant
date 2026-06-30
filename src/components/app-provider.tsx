@@ -8,8 +8,14 @@ import { getLocalApiURL, getRemoteApiURL } from '@/lib/api-url';
 import type { DataProvider } from '@/lib/dataprovider';
 import { getAuth } from 'firebase/auth';
 import type { UserProfile, AppSettings } from '@/lib/types';
+import type { StorageType } from '@/lib/storage-types';
+import {
+  IS_STORAGE_LOCKED,
+  LOCKED_STORAGE_TYPE,
+  IS_STORAGE_CONFIGURABLE,
+} from '@/lib/build-config';
 
-export type StorageType = 'sqlite' | 'online';
+export type { StorageType } from '@/lib/storage-types';
 
 const normalizeStorageType = (value: string | null): StorageType => {
   if (value === 'online') return 'online';
@@ -28,6 +34,7 @@ interface AppContextValue {
   setGlobalLoading: (isLoading: boolean) => void;
   storageType: StorageType;
   changeStorageType: (newType: StorageType) => void;
+  isStorageConfigurable: boolean;
   user: UserProfile | null | undefined;
   authLoading: boolean;
   auth: ReturnType<typeof getAuth>;
@@ -50,9 +57,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>({ shopName: 'حسابدار آنلاین آموزا' });
 
   useEffect(() => {
-    const savedProvider = normalizeStorageType(localStorage.getItem('storageType'));
-    if (localStorage.getItem('storageType') !== savedProvider) {
+    let savedProvider: StorageType;
+    if (IS_STORAGE_LOCKED && LOCKED_STORAGE_TYPE) {
+      savedProvider = LOCKED_STORAGE_TYPE;
       localStorage.setItem('storageType', savedProvider);
+    } else {
+      savedProvider = normalizeStorageType(localStorage.getItem('storageType'));
+      if (!IS_STORAGE_CONFIGURABLE || localStorage.getItem('storageType') !== savedProvider) {
+        localStorage.setItem('storageType', savedProvider);
+      }
     }
     setStorageType(savedProvider);
 
@@ -118,6 +131,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [storageType, user, authLoading]);
 
   const changeStorageType = useCallback((newType: StorageType) => {
+    if (!IS_STORAGE_CONFIGURABLE) return;
     localStorage.setItem('storageType', newType);
     setStorageType(newType);
   }, []);
@@ -129,6 +143,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setGlobalLoading,
     storageType,
     changeStorageType,
+    isStorageConfigurable: IS_STORAGE_CONFIGURABLE,
     user,
     authLoading,
     auth,

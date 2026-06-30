@@ -14,6 +14,7 @@ import { useEffect } from 'react';
 import { Logo } from '@/components/logo';
 import { ThemeSwitcher } from '@/components/layout/theme-switcher';
 import { Skeleton } from '@/components/ui/skeleton';
+import { LicenseBlockOverlay } from '@/components/license/license-block-overlay';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
     const { user, authLoading } = useAppContext();
@@ -63,6 +64,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
             <DashboardShell>{children}</DashboardShell>
           </main>
+          <LicenseBlockOverlay />
           <FirebaseStatusIndicator />
         </SidebarInset>
       </div>

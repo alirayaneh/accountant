@@ -21,6 +21,7 @@ import settingsRoutes from './routes/settings';
 import attachmentRoutes from './routes/attachments';
 import uploadRoutes from './routes/upload';
 import userRoutes from './routes/users';
+import licenseRoutes from './routes/license';
 
 // Load environment variables
 dotenv.config();
@@ -173,6 +174,10 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/attachments', attachmentRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/users', userRoutes);
+
+if (process.env.LICENSE_ENABLED === 'true' && process.env.DB_TYPE !== 'mysql') {
+    app.use('/api/license', licenseRoutes);
+}
 
 // Health check endpoint
 app.get('/health', (req, res) => {

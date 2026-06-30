@@ -42,6 +42,8 @@ import Link from 'next/link';
 import { ProductMediaManager } from '@/components/product-media-manager';
 import { PageHeader } from '@/components/layout/page-header';
 import { withLegacyImageUrl } from '@/lib/product-media';
+import { IS_ELECTRON_BUILD } from '@/lib/build-config';
+import { checkCatalogWriteAccess } from '@/lib/license/gates/add-product';
 
 const mediaSchema = z.object({
   id: z.string(),
@@ -76,6 +78,11 @@ export default function AddProductPage() {
   const [exchangeRates, setExchangeRates] = useState<ExchangeRate[]>([]);
   const [calculatedPrice, setCalculatedPrice] = useState(0);
   const { db } = useAppContext();
+
+  useEffect(() => {
+    if (!IS_ELECTRON_BUILD) return;
+    checkCatalogWriteAccess().catch(() => {});
+  }, []);
 
   useEffect(() => {
     barcodeRef.current?.focus();

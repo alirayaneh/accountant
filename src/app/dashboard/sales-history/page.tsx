@@ -33,6 +33,8 @@ import { Input } from '@/components/ui/input';
 import { formatPersianDate } from '@/lib/date-utils';
 import { PageHeader } from '@/components/layout/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
+import { IS_ELECTRON_BUILD } from '@/lib/build-config';
+import { checkSalesReportGate } from '@/lib/license/gates/sales-history';
 
 
 const paymentMethodLabels: Record<PaymentMethod, string> = {
@@ -130,6 +132,11 @@ export default function SalesHistoryPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
   const { db, isLoading, setGlobalLoading } = useAppContext();
+
+  useEffect(() => {
+    if (!IS_ELECTRON_BUILD) return;
+    checkSalesReportGate().catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!db) return;

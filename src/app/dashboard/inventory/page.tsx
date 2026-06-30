@@ -65,6 +65,8 @@ import { ProductCardMedia } from '@/components/product-card-media';
 import { getProductCover, getProductMedia, withLegacyImageUrl } from '@/lib/product-media';
 import { PageHeader } from '@/components/layout/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
+import { IS_ELECTRON_BUILD } from '@/lib/build-config';
+import { verifyWarehouseModule } from '@/lib/license/gates/inventory';
 
 const mediaSchema = z.object({
   id: z.string(),
@@ -449,6 +451,11 @@ export default function InventoryPage() {
   const [exchangeRates, setExchangeRates] = useState<ExchangeRate[]>([]);
   const [costTitles, setCostTitles] = useState<CostTitle[]>([]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (!IS_ELECTRON_BUILD) return;
+    verifyWarehouseModule().catch(() => {});
+  }, []);
   
   const fetchProducts = async () => {
     if (!db) return;

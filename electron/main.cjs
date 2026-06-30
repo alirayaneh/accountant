@@ -1,6 +1,8 @@
 const { app, BrowserWindow, dialog } = require('electron');
 const { spawn } = require('child_process');
+const crypto = require('crypto');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 const APP_PORT = '43031';
@@ -84,9 +86,15 @@ function waitForUrl(url, timeoutMs = 60000) {
   });
 }
 
+function getMachineId(userDataPath) {
+  const seed = `${userDataPath}:${os.hostname()}:${os.platform()}:${os.arch()}`;
+  return crypto.createHash('sha256').update(seed).digest('hex').slice(0, 32);
+}
+
 async function startServers() {
   const userDataPath = app.getPath('userData');
   const uploadDir = path.join(userDataPath, 'uploads');
+  const machineId = getMachineId(userDataPath);
   ensureDir(uploadDir);
 
   const backendScript = getResourcePath('backend', 'dist', 'server.js');
@@ -109,6 +117,11 @@ async function startServers() {
       SERVE_FRONTEND: 'true',
       FRONTEND_DIR: frontendDir,
       NEXT_PUBLIC_LOCAL_API_URL: `http://127.0.0.1:${APP_PORT}`,
+      LICENSE_ENABLED: 'true',
+      LICENSE_SERVER_URL: process.env.LICENSE_SERVER_URL || 'https://license.yourdomain.com/api/v1',
+      LICENSE_PRODUCT_ID: process.env.LICENSE_PRODUCT_ID || 'easystock-accountant',
+      MACHINE_ID: machineId,
+      APP_VERSION: app.getVersion(),
     },
   });
 

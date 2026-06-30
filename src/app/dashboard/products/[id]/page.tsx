@@ -16,6 +16,8 @@ import { getProductCover, getProductMedia } from '@/lib/product-media';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatCard } from '@/components/ui/stat-card';
 import { formatToman } from '@/lib/format';
+import { IS_ELECTRON_BUILD } from '@/lib/build-config';
+import { validateItemViewRights } from '@/lib/license/gates/products-detail';
 
 export default function ProductProfilePage() {
   const { id } = useParams();
@@ -26,6 +28,11 @@ export default function ProductProfilePage() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [exchangeRates, setExchangeRates] = useState<ExchangeRate[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!IS_ELECTRON_BUILD) return;
+    validateItemViewRights().catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!db || !id) return;

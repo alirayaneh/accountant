@@ -33,6 +33,8 @@ import {
 } from '@/components/ui/table';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { formatPersianDate } from '@/lib/date-utils';
+import { IS_ELECTRON_BUILD } from '@/lib/build-config';
+import { ensureHomeEntitlement } from '@/lib/license/gates/dashboard';
 
 export default function FinancialDashboardPage() {
   const { db, isLoading, setGlobalLoading } = useAppContext();
@@ -40,6 +42,11 @@ export default function FinancialDashboardPage() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    if (!IS_ELECTRON_BUILD) return;
+    ensureHomeEntitlement().catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!db) return;

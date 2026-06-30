@@ -50,6 +50,8 @@ import {
 import { useAppContext } from '@/components/app-provider';
 import { PageHeader } from '@/components/layout/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
+import { IS_ELECTRON_BUILD } from '@/lib/build-config';
+import { validateCrmAccess } from '@/lib/license/gates/customers';
 
 const customerSchema = z.object({
   name: z.string().min(1, 'نام مشتری الزامی است'),
@@ -224,6 +226,11 @@ export default function CustomersPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const { toast } = useToast();
   const { db } = useAppContext();
+
+  useEffect(() => {
+    if (!IS_ELECTRON_BUILD) return;
+    validateCrmAccess().catch(() => {});
+  }, []);
 
   const fetchCustomers = async () => {
     if (!db) return;

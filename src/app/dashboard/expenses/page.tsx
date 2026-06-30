@@ -47,6 +47,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAppContext } from '@/components/app-provider';
+import { IS_ELECTRON_BUILD } from '@/lib/build-config';
+import { ensureExpenseTracking } from '@/lib/license/gates/expenses';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PersianDate, PersianDatePicker } from '@/components/persian-date';
 import { Badge } from '@/components/ui/badge';
@@ -595,6 +597,11 @@ export default function ExpensesPage() {
   const [dateTo, setDateTo] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (!IS_ELECTRON_BUILD) return;
+    ensureExpenseTracking().catch(() => {});
+  }, []);
 
   const fetchExpenses = async () => {
     if (!db) return;

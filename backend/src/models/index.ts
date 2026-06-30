@@ -12,6 +12,7 @@ import ExchangeRate from './ExchangeRate';
 import CostTitle from './CostTitle';
 import UserProfile from './UserProfile';
 import AppSettings from './AppSettings';
+import LicenseInfo from './LicenseInfo';
 
 const models = {
     Product,
@@ -25,7 +26,8 @@ const models = {
     ExchangeRate,
     CostTitle,
     UserProfile,
-    AppSettings
+    AppSettings,
+    LicenseInfo,
 };
 
 const TENANT_TABLES = [
@@ -233,7 +235,8 @@ export {
     ExchangeRate,
     CostTitle,
     UserProfile,
-    AppSettings
+    AppSettings,
+    LicenseInfo
 };
 
 export default models;
