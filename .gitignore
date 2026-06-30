@@ -1,7 +1,6 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
 /node_modules
+/backend/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -17,33 +16,58 @@
 /.next/
 /out/
 
-# production
+# production / build artifacts
 /build
+/backend/dist/
+/electron-dist/
+/release/
+
+# uploads (runtime user data)
+/uploads/*
+!/uploads/.gitkeep
+/backend/uploads/*
+!/backend/uploads/.gitkeep
+
+# local databases
+*.sqlite
+*.sqlite-journal
+/database.sqlite
+/backend/database.sqlite
+
+# env (keep templates)
+.env
+.env.local
+.env.production
+.env.development
+.env.*.local
+!.env.example
+!.env.electron
+!.env.server
+
+# PWA (regenerated on build)
+/public/sw.js
+/public/workbox-*.js
+/public/sw.js.map
 
 # misc
 .DS_Store
 *.pem
+Thumbs.db
 
-# debug
+# debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+firebase-debug.log
+firestore-debug.log
 
-# vercel
+# vercel / deploy
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
-.genkit/*
-.env*
-
-# firebase
-firebase-debug.log
-firestore-debug.log
-node_modules
-
-# protected electron build output
-/electron-dist/
+# genkit
+.genkit/
