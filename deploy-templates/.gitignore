@@ -1,0 +1,11 @@
+node_modules/
+backend/node_modules/
+.env
+.env.local
+uploads/*
+!uploads/.gitkeep
+backend/uploads/*
+!backend/uploads/.gitkeep
+*.sqlite
+backend/database.sqlite
+npm-debug.log*

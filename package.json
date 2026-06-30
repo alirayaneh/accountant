@@ -18,6 +18,9 @@
     "dist:linux": "npm run build:electron:assets && electron-builder --linux AppImage",
     "dist:win": "npm run build:electron:assets && electron-builder --win portable",
     "dist:all": "npm run build:electron:assets && electron-builder --linux AppImage --win portable",
+    "deploy:pack": "node scripts/deploy-pack.mjs",
+    "deploy:push": "node scripts/deploy-push.mjs",
+    "deploy": "node scripts/deploy-push.mjs",
     "start": "NODE_ENV=production node server.js",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"

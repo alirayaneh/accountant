@@ -1,0 +1,47 @@
+name: Deploy Server
+
+on:
+  push:
+    branches:
+      - server
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-server
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+
+      - name: Configure SSH for deploy repository
+        env:
+          DEPLOY_REPO_SSH_KEY: ${{ secrets.DEPLOY_REPO_SSH_KEY }}
+        run: |
+          if [ -z "$DEPLOY_REPO_SSH_KEY" ]; then
+            echo "Missing secret DEPLOY_REPO_SSH_KEY"
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_REPO_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -t ed25519,rsa github.com >> ~/.ssh/known_hosts
+
+      - name: Build and push to accountant_deploy
+        env:
+          GIT_SSH_COMMAND: ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes
+          DEPLOY_REPO: git@github.com:alirayaneh/accountant_deploy.git
+          DEPLOY_BRANCH: main
+        run: npm run deploy:push

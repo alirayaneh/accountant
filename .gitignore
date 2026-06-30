@@ -71,3 +71,7 @@ next-env.d.ts
 
 # genkit
 .genkit/
+
+# deploy staging (local only)
+/deploy-staging/
+/.deploy-work/
