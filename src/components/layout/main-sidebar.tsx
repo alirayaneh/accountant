@@ -37,8 +37,6 @@ import { ThemeSwitcher } from './theme-switcher';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { cn } from '@/lib/utils';
 
-const DEV_MODE_UID = process.env.NEXT_PUBLIC_DEV_MODE_USER_UID;
-
 type NavItem = {
   href: string;
   label: string;

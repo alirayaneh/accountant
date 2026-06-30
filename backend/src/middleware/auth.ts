@@ -10,6 +10,8 @@ declare global {
             role: 'user' | 'employee' | 'superadmin';
             ownerId?: string;
             employeeId?: string;
+            impersonating?: boolean;
+            impersonatorId?: string;
         }
     }
 }
@@ -50,6 +52,8 @@ export const authenticateToken: RequestHandler = async (
                 role: user.role,
                 ownerId: user.ownerId,
                 employeeId: user.employeeId,
+                impersonating: Boolean(decoded.impersonating),
+                impersonatorId: decoded.impersonatorId,
             };
 
             next();

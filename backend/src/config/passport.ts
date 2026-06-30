@@ -3,6 +3,10 @@ import { Strategy as LocalStrategy } from 'passport-local';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import bcrypt from 'bcryptjs';
 import { UserProfile } from '../models';
+import { ensureSuperadminRole } from '../utils/superadmin';
+import { isServerDeployment } from '../utils/deployment';
+import { createFreeLicenseForUser } from '../services/license-key.service';
+import { seedDefaultExchangeRates } from '../utils/seed';
 
 // Local Strategy (Username/Password)
 passport.use(
@@ -29,7 +33,8 @@ passport.use(
                     return done(null, false, { message: 'Invalid email or password' });
                 }
 
-                return done(null, user);
+                const promoted = await ensureSuperadminRole(user);
+                return done(null, promoted);
             } catch (error) {
                 return done(error);
             }
@@ -57,7 +62,6 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
                     });
 
                     if (!user) {
-                        // Create new user
                         user = await UserProfile.create({
                             id: `google_${profile.id}_${Date.now()}`,
                             email: profile.emails?.[0]?.value,
@@ -67,9 +71,20 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
                             authProvider: 'google',
                             providerId: profile.id
                         });
+
+                        await seedDefaultExchangeRates(user.id);
+
+                        if (isServerDeployment()) {
+                            try {
+                                await createFreeLicenseForUser(user.id);
+                            } catch (licenseError) {
+                                console.error('Free license creation failed:', licenseError);
+                            }
+                        }
                     }
 
-                    return done(null, user);
+                    const promoted = await ensureSuperadminRole(user);
+                    return done(null, promoted);
                 } catch (error) {
                     return done(error as Error);
                 }

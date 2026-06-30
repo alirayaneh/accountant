@@ -22,6 +22,10 @@ import attachmentRoutes from './routes/attachments';
 import uploadRoutes from './routes/upload';
 import userRoutes from './routes/users';
 import licenseRoutes from './routes/license';
+import adminRoutes from './routes/admin';
+import licenseIssuerRoutes from './routes/license-issuer';
+import userLicenseRoutes from './routes/licenses';
+import { isServerDeployment } from './utils/deployment';
 
 // Load environment variables
 dotenv.config();
@@ -175,7 +179,11 @@ app.use('/api/attachments', attachmentRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/users', userRoutes);
 
-if (process.env.LICENSE_ENABLED === 'true' && process.env.DB_TYPE !== 'mysql') {
+if (isServerDeployment()) {
+    app.use('/api/admin', adminRoutes);
+    app.use('/api/v1/licenses', licenseIssuerRoutes);
+    app.use('/api/licenses', userLicenseRoutes);
+} else if (process.env.LICENSE_ENABLED === 'true' && process.env.DB_TYPE !== 'mysql') {
     app.use('/api/license', licenseRoutes);
 }
 
@@ -251,6 +259,7 @@ const startServer = async () => {
             console.log(`✓ Server running on port ${PORT}`);
             console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
             console.log(`✓ Database type: ${process.env.DB_TYPE || 'sqlite'}`);
+            console.log(`✓ Deployment mode: ${process.env.DEPLOYMENT_MODE || 'desktop'}`);
             console.log(`✓ API available at: http://localhost:${PORT}`);
             console.log(`✓ Health check: http://localhost:${PORT}/health`);
             if (nextHandler) {

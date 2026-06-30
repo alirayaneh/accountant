@@ -66,4 +66,8 @@ export interface DataProvider {
   getUserProfile: (userId: string) => Promise<UserProfile | null>;
   saveUserProfile: (profile: UserProfile) => Promise<void>;
   getAllUsers: () => Promise<UserProfile[]>;
+  impersonateUser: (userId: string) => Promise<{ token: string; user: UserProfile }>;
+  stopImpersonation: () => Promise<{ token: string; user: UserProfile }>;
+  getMyDesktopLicense: () => Promise<Record<string, unknown>>;
+  regenerateDesktopLicense: () => Promise<Record<string, unknown>>;
 }

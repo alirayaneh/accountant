@@ -128,4 +128,6 @@ export interface UserProfile {
     authProvider?: 'local' | 'google' | 'telegram';
     ownerId?: string;
     employeeId?: string;
+    impersonating?: boolean;
+    impersonatorId?: string;
 }

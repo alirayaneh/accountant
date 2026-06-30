@@ -460,6 +460,38 @@ export const APIDataProvider = (baseURL: string, getToken?: () => string | null)
                 headers: headers()
             });
             return handleResponse(res);
-        }
+        },
+
+        impersonateUser: async (userId: string) => {
+            const res = await fetch(`${baseURL}/api/admin/impersonate`, {
+                method: 'POST',
+                headers: headers(),
+                body: JSON.stringify({ userId }),
+            });
+            return handleResponse(res) as Promise<{ token: string; user: UserProfile }>;
+        },
+
+        stopImpersonation: async () => {
+            const res = await fetch(`${baseURL}/api/admin/stop-impersonate`, {
+                method: 'POST',
+                headers: headers(),
+            });
+            return handleResponse(res) as Promise<{ token: string; user: UserProfile }>;
+        },
+
+        getMyDesktopLicense: async () => {
+            const res = await fetch(`${baseURL}/api/licenses/me`, {
+                headers: headers(),
+            });
+            return handleResponse(res);
+        },
+
+        regenerateDesktopLicense: async () => {
+            const res = await fetch(`${baseURL}/api/licenses/regenerate`, {
+                method: 'POST',
+                headers: headers(),
+            });
+            return handleResponse(res);
+        },
     };
 };

@@ -14,12 +14,17 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { PageHeader } from '@/components/layout/page-header';
 import { IS_ELECTRON_BUILD } from '@/lib/build-config';
 import { verifyAdminPanelAccess } from '@/lib/license/gates/admin-users';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { LogIn } from 'lucide-react';
 
 export default function AdminUsersPage() {
     const { db, user, authLoading } = useAppContext();
     const [users, setUsers] = useState<UserProfile[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
     const router = useRouter();
+    const { toast } = useToast();
 
     useEffect(() => {
         if (!IS_ELECTRON_BUILD) return;
@@ -56,6 +61,32 @@ export default function AdminUsersPage() {
         .map((n) => n[0])
         .slice(0, 2)
         .join('');
+    };
+
+    const handleImpersonate = async (targetUserId: string) => {
+        if (!db) return;
+        setImpersonatingId(targetUserId);
+        try {
+            const currentToken = localStorage.getItem('apiToken');
+            const result = await db.impersonateUser(targetUserId);
+            if (currentToken) {
+                localStorage.setItem('originalAdminToken', currentToken);
+            }
+            localStorage.setItem('apiToken', result.token);
+            toast({
+                title: 'ورود به عنوان کاربر',
+                description: `اکنون به عنوان ${result.user.displayName || result.user.email} وارد شده‌اید.`,
+            });
+            window.location.href = '/dashboard';
+        } catch (error) {
+            toast({
+                variant: 'destructive',
+                title: 'خطا در ورود به عنوان کاربر',
+                description: error instanceof Error ? error.message : 'خطای ناشناخته',
+            });
+        } finally {
+            setImpersonatingId(null);
+        }
     };
 
     if (isLoading || authLoading) {
@@ -100,6 +131,7 @@ export default function AdminUsersPage() {
                                     <TableHead>ایمیل</TableHead>
                                     <TableHead>شناسه کاربر (UID)</TableHead>
                                     <TableHead>نقش</TableHead>
+                                    <TableHead className="text-left">عملیات</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -120,8 +152,23 @@ export default function AdminUsersPage() {
                                         <TableCell>
                                             {u.role === 'superadmin' ? (
                                               <Badge variant="default">Super Admin</Badge>
+                                            ) : u.role === 'employee' ? (
+                                              <Badge variant="chip">Employee</Badge>
                                             ) : (
                                               <Badge variant="chip">User</Badge>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            {u.role !== 'superadmin' && u.id !== user?.id && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    disabled={impersonatingId === u.id}
+                                                    onClick={() => handleImpersonate(u.id)}
+                                                >
+                                                    <LogIn className="ms-1 h-4 w-4" />
+                                                    ورود به عنوان
+                                                </Button>
                                             )}
                                         </TableCell>
                                     </TableRow>

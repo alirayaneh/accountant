@@ -40,6 +40,8 @@ interface AppContextValue {
   auth: ReturnType<typeof getAuth>;
   settings: AppSettings;
   setSettings: (settings: AppSettings) => void;
+  isImpersonating: boolean;
+  stopImpersonation: () => Promise<void>;
 }
 
 const AppContext = React.createContext<AppContextValue | null>(null);
@@ -136,6 +138,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setStorageType(newType);
   }, []);
 
+  const stopImpersonation = useCallback(async () => {
+    const apiToken = localStorage.getItem('apiToken');
+    if (!apiToken) return;
+
+    const provider = APIDataProvider(getApiURL(storageType), () => localStorage.getItem('apiToken'));
+    const result = await provider.stopImpersonation();
+    localStorage.setItem('apiToken', result.token);
+    localStorage.removeItem('originalAdminToken');
+    setUser(result.user);
+    window.location.href = '/dashboard/admin/users';
+  }, [storageType]);
+
   const contextValue = useMemo(() => ({
     db: dataProvider,
     isLoading,
@@ -149,7 +163,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     auth,
     settings,
     setSettings,
-  }), [dataProvider, isLoading, isGlobalLoading, storageType, changeStorageType, user, authLoading, auth, settings]);
+    isImpersonating: Boolean(user?.impersonating),
+    stopImpersonation,
+  }), [dataProvider, isLoading, isGlobalLoading, storageType, changeStorageType, user, authLoading, auth, settings, stopImpersonation]);
 
   return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
 }

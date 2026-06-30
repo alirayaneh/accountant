@@ -13,6 +13,9 @@ import CostTitle from './CostTitle';
 import UserProfile from './UserProfile';
 import AppSettings from './AppSettings';
 import LicenseInfo from './LicenseInfo';
+import AdminAuditLog from './AdminAuditLog';
+import License from './License';
+import LicenseActivation from './LicenseActivation';
 
 const models = {
     Product,
@@ -28,6 +31,9 @@ const models = {
     UserProfile,
     AppSettings,
     LicenseInfo,
+    AdminAuditLog,
+    License,
+    LicenseActivation,
 };
 
 const TENANT_TABLES = [
@@ -236,7 +242,10 @@ export {
     CostTitle,
     UserProfile,
     AppSettings,
-    LicenseInfo
+    LicenseInfo,
+    AdminAuditLog,
+    License,
+    LicenseActivation
 };
 
 export default models;

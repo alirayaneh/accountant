@@ -33,8 +33,9 @@ import { PageHeader } from '@/components/layout/page-header';
 import { useAppContext } from '@/components/app-provider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { StorageType } from '@/components/app-provider';
-import { ALLOWED_STORAGE_TYPES, IS_ELECTRON_BUILD } from '@/lib/build-config';
+import { ALLOWED_STORAGE_TYPES, IS_ELECTRON_BUILD, IS_SERVER_BUILD } from '@/lib/build-config';
 import { LicenseSettingsForm } from '@/components/license/license-settings-form';
+import { ServerDesktopLicenseForm } from '@/components/license/server-desktop-license-form';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getLocalApiURL, getRemoteApiURL } from '@/lib/api-url';
@@ -733,8 +734,8 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get('tab');
-    if (tab === 'license') {
-      setActiveTab('license');
+    if (tab === 'license' || tab === 'desktop-license') {
+      setActiveTab(tab);
     }
   }, []);
 
@@ -742,6 +743,7 @@ export default function SettingsPage() {
     { value: 'general', label: 'عمومی', icon: Store },
     ...(isStorageConfigurable ? [{ value: 'data-storage', label: 'ذخیره‌سازی', icon: Database }] : []),
     ...(IS_ELECTRON_BUILD ? [{ value: 'license', label: 'لایسنس', icon: KeyRound }] : []),
+    ...(IS_SERVER_BUILD ? [{ value: 'desktop-license', label: 'لایسنس دسکتاپ', icon: KeyRound }] : []),
     { value: 'exchange-rates', label: 'نرخ‌های ارز', icon: Banknote },
     { value: 'cost-titles', label: 'عناوین هزینه', icon: Tag },
     { value: 'employees', label: 'کارمندان', icon: Users },
@@ -802,6 +804,11 @@ export default function SettingsPage() {
         {IS_ELECTRON_BUILD && (
         <TabsContent value="license">
           <LicenseSettingsForm />
+        </TabsContent>
+        )}
+        {IS_SERVER_BUILD && (
+        <TabsContent value="desktop-license">
+          <ServerDesktopLicenseForm />
         </TabsContent>
         )}
         <TabsContent value="exchange-rates">
