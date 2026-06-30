@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { PageHeader } from '@/components/layout/page-header';
 
 export default function AdminUsersPage() {
     const { db, user, authLoading } = useAppContext();
@@ -54,7 +55,7 @@ export default function AdminUsersPage() {
         return (
             <div className="space-y-4">
                 <Skeleton className="h-8 w-48" />
-                <Card>
+                <Card variant="glass">
                     <CardHeader>
                         <Skeleton className="h-6 w-1/3" />
                         <Skeleton className="h-4 w-2/3" />
@@ -70,9 +71,12 @@ export default function AdminUsersPage() {
     }
 
     return (
-        <div>
-            <h1 className="text-2xl font-bold mb-6">مدیریت کاربران</h1>
-            <Card>
+        <div className="flex flex-col gap-6">
+            <PageHeader
+              title="مدیریت کاربران"
+              description="لیست تمام کاربران ثبت‌شده در سیستم"
+            />
+            <Card variant="glass">
                 <CardHeader>
                     <CardTitle>لیست کاربران سیستم</CardTitle>
                     <CardDescription>
@@ -82,7 +86,7 @@ export default function AdminUsersPage() {
                 <CardContent>
                     <ScrollArea className="h-[60vh]">
                         <Table>
-                            <TableHeader className="sticky top-0 bg-card">
+                            <TableHeader>
                                 <TableRow>
                                     <TableHead>کاربر</TableHead>
                                     <TableHead>نام فروشگاه</TableHead>
@@ -107,7 +111,11 @@ export default function AdminUsersPage() {
                                         <TableCell>{u.email || '-'}</TableCell>
                                         <TableCell className="font-mono text-xs">{u.id}</TableCell>
                                         <TableCell>
-                                            {u.role === 'superadmin' ? <Badge>Super Admin</Badge> : <Badge variant="secondary">User</Badge>}
+                                            {u.role === 'superadmin' ? (
+                                              <Badge variant="default">Super Admin</Badge>
+                                            ) : (
+                                              <Badge variant="chip">User</Badge>
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -119,4 +127,3 @@ export default function AdminUsersPage() {
         </div>
     );
 }
-

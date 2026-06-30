@@ -48,6 +48,8 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { useAppContext } from '@/components/app-provider';
+import { PageHeader } from '@/components/layout/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
 
 const customerSchema = z.object({
   name: z.string().min(1, 'نام مشتری الزامی است'),
@@ -158,10 +160,10 @@ function CustomerCard({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   return (
-    <Card>
+    <Card variant="glass" className="transition-transform hover:-translate-y-0.5">
       <CardHeader className="flex flex-row items-center gap-4">
-          <div className="p-3 rounded-full bg-muted">
-            <User className="h-6 w-6" />
+          <div className="rounded-2xl border border-primary/20 bg-primary/10 p-3">
+            <User className="h-6 w-6 text-primary" />
           </div>
           <div>
             <CardTitle>{customer.name}</CardTitle>
@@ -260,29 +262,32 @@ export default function CustomersPage() {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">مدیریت مشتریان</h1>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              افزودن مشتری
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>افزودن مشتری جدید</DialogTitle>
-            </DialogHeader>
-            <CustomerForm
-              onSuccess={() => {
-                fetchCustomers();
-                setIsAddDialogOpen(false);
-              }}
-            />
-          </DialogContent>
-        </Dialog>
-      </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="مدیریت مشتریان"
+        description="افزودن، ویرایش و حذف مشتریان"
+        actions={
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="gradient">
+                <PlusCircle className="me-2 h-4 w-4" />
+                افزودن مشتری
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>افزودن مشتری جدید</DialogTitle>
+              </DialogHeader>
+              <CustomerForm
+                onSuccess={() => {
+                  fetchCustomers();
+                  setIsAddDialogOpen(false);
+                }}
+              />
+            </DialogContent>
+          </Dialog>
+        }
+      />
 
       {customers.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -296,19 +301,15 @@ export default function CustomersPage() {
           ))}
         </div>
       ) : (
-        <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm">
-          <div className="flex flex-col items-center gap-1 text-center">
-            <h3 className="text-2xl font-bold tracking-tight">
-              مشتری یافت نشد
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              برای شروع، اولین مشتری خود را اضافه کنید.
-            </p>
-            <Button className="mt-4" onClick={() => setIsAddDialogOpen(true)}>
-                افزودن مشتری
+        <EmptyState
+          title="مشتری یافت نشد"
+          description="برای شروع، اولین مشتری خود را اضافه کنید."
+          action={
+            <Button variant="gradient" onClick={() => setIsAddDialogOpen(true)}>
+              افزودن مشتری
             </Button>
-          </div>
-        </div>
+          }
+        />
       )}
     </div>
   );

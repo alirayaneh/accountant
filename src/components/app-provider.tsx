@@ -2,17 +2,24 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { IndexedDBDataProvider } from '@/lib/db-indexeddb';
-import { FirestoreDataProvider } from '@/lib/db-firestore';
+import { APIDataProvider } from '@/lib/db-api';
 import { createFirebaseApp } from '@/lib/firebase';
+import { getLocalApiURL, getRemoteApiURL } from '@/lib/api-url';
 import type { DataProvider } from '@/lib/dataprovider';
-import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
+import { getAuth } from 'firebase/auth';
 import type { UserProfile, AppSettings } from '@/lib/types';
 
-export type StorageType = 'local' | 'cloud';
+export type StorageType = 'sqlite' | 'online';
 
-const SUPER_ADMIN_UID = 'kTyOtB5QpjT8KPMsmejr11kAM7r1';
-const DEV_MODE_UID = process.env.NEXT_PUBLIC_DEV_MODE_USER_UID;
+const normalizeStorageType = (value: string | null): StorageType => {
+  if (value === 'online') return 'online';
+  return 'sqlite';
+};
+
+const isAPIStorage = (storageType: StorageType) => storageType === 'sqlite' || storageType === 'online';
+const getApiURL = (storageType: StorageType) => (
+  storageType === 'online' ? getRemoteApiURL() : getLocalApiURL()
+);
 
 interface AppContextValue {
   db: DataProvider | null;
@@ -34,7 +41,7 @@ const app = createFirebaseApp();
 const auth = getAuth(app);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [storageType, setStorageType] = useState<StorageType>('local');
+  const [storageType, setStorageType] = useState<StorageType>('sqlite');
   const [dataProvider, setDataProvider] = useState<DataProvider | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGlobalLoading, setGlobalLoading] = useState(false);
@@ -43,85 +50,73 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>({ shopName: 'حسابدار آنلاین آموزا' });
 
   useEffect(() => {
-    const savedProvider = (localStorage.getItem('storageType') as StorageType) || 'local';
+    const savedProvider = normalizeStorageType(localStorage.getItem('storageType'));
+    if (localStorage.getItem('storageType') !== savedProvider) {
+      localStorage.setItem('storageType', savedProvider);
+    }
     setStorageType(savedProvider);
 
-    if (DEV_MODE_UID) {
-        const devUser: UserProfile = {
-           id: DEV_MODE_UID,
-           email: 'dev@example.com',
-           displayName: 'Dev User',
-           photoURL: `https://i.pravatar.cc/150?u=${DEV_MODE_UID}`,
-           role: 'superadmin',
-         };
-         setUser(devUser);
-         setAuthLoading(false);
-         return;
+    const apiToken = localStorage.getItem('apiToken');
+    if (!apiToken) {
+      setUser(null);
+      setAuthLoading(false);
+      return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-          const dbInstance = savedProvider === 'cloud' ? FirestoreDataProvider(currentUser.uid, false) : IndexedDBDataProvider;
-          const userProfile = await dbInstance.getUserProfile(currentUser.uid);
-           if (userProfile) {
-              setUser(userProfile);
-          } else {
-              const newUserProfile: UserProfile = {
-                  id: currentUser.uid,
-                  email: currentUser.email,
-                  displayName: currentUser.displayName,
-                  photoURL: currentUser.photoURL,
-                  role: currentUser.uid === SUPER_ADMIN_UID ? 'superadmin' : 'user'
-              };
-              await dbInstance.saveUserProfile(newUserProfile);
-              setUser(newUserProfile);
-          }
-      } else {
-          setUser(null);
-      }
-      setAuthLoading(false);
-    });
-
-    return () => unsubscribe();
+    fetch(`${getApiURL(savedProvider)}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${apiToken}` },
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('API auth failed');
+        return response.json();
+      })
+      .then((profile: UserProfile) => setUser(profile))
+      .catch(() => {
+        localStorage.removeItem('apiToken');
+        setUser(null);
+      })
+      .finally(() => setAuthLoading(false));
   }, []);
-
 
   useEffect(() => {
     async function initializeProvider() {
       if (authLoading) return;
-      
+
       setIsLoading(true);
 
-      let provider: DataProvider;
-      const currentUserId = user?.id;
-
-      if (storageType === 'cloud') {
-        if (currentUserId) {
-            const isSuperAdmin = user?.role === 'superadmin';
-            provider = FirestoreDataProvider(currentUserId, isSuperAdmin);
-        } else {
-            setIsLoading(false);
-            return;
-        }
-      } else {
-        provider = IndexedDBDataProvider;
+      const apiToken = localStorage.getItem('apiToken');
+      if (!apiToken) {
+        setIsLoading(false);
+        return;
       }
-      
+
+      const provider = APIDataProvider(getApiURL(storageType), () => localStorage.getItem('apiToken'));
+
       try {
         const appSettings = await provider.getAppSettings();
         setSettings(appSettings);
       } catch (e) {
-        console.error("Failed to fetch app settings:", e);
+        console.error('Failed to fetch app settings:', e);
+        localStorage.removeItem('apiToken');
+        if (typeof window !== 'undefined' && window.location.pathname !== '/') {
+          window.location.href = '/';
+        }
+        return;
       }
-      
+
+      try {
+        await provider.applyRecurringExpenses();
+      } catch (e) {
+        console.error('Failed to apply recurring expenses on startup:', e);
+      }
+
       setDataProvider(provider);
       setIsLoading(false);
     }
 
     initializeProvider();
-    
   }, [storageType, user, authLoading]);
-  
+
   const changeStorageType = useCallback((newType: StorageType) => {
     localStorage.setItem('storageType', newType);
     setStorageType(newType);

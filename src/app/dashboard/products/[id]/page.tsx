@@ -3,14 +3,19 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAppContext } from '@/components/app-provider';
-import type { Product, Sale } from '@/lib/types';
+import type { Product, Sale, ExchangeRate } from '@/lib/types';
 import { ImageIcon, ShoppingBag, TrendingUp, DollarSign } from 'lucide-react';
-import { CURRENCY_SYMBOLS } from '@/lib/utils';
+import { getEffectiveProductPrice } from '@/lib/utils';
+import { ProductMediaViewer } from '@/components/product-media-viewer';
+import { PersianDate } from '@/components/persian-date';
+import { getProductCover, getProductMedia } from '@/lib/product-media';
+import { PageHeader } from '@/components/layout/page-header';
+import { StatCard } from '@/components/ui/stat-card';
+import { formatToman } from '@/lib/format';
 
 export default function ProductProfilePage() {
   const { id } = useParams();
@@ -19,6 +24,8 @@ export default function ProductProfilePage() {
   
   const [product, setProduct] = useState<Product | null>(null);
   const [sales, setSales] = useState<Sale[]>([]);
+  const [exchangeRates, setExchangeRates] = useState<ExchangeRate[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (!db || !id) return;
@@ -27,15 +34,19 @@ export default function ProductProfilePage() {
       setGlobalLoading(true);
       try {
         const productId = Array.isArray(id) ? id[0] : id;
-        const productData = await db.getProductById(productId);
+        const [productData, allSales, rates] = await Promise.all([
+          db.getProductById(productId),
+          db.getAllSales(),
+          db.getExchangeRates(),
+        ]);
         if (!productData) {
-          router.push('/dashboard'); // Not found
+          router.push('/dashboard');
           return;
         }
         setProduct(productData);
+        setExchangeRates(rates);
 
-        const allSales = await db.getAllSales();
-        const productSales = allSales.filter(sale => 
+        const productSales = allSales.filter(sale =>
           sale.items.some(item => item.productId === productId)
         );
         setSales(productSales);
@@ -83,53 +94,73 @@ export default function ProductProfilePage() {
     );
   }
 
+  const media = getProductMedia(product);
+  const cover = getProductCover(product);
+  const effectivePrice = getEffectiveProductPrice(product, exchangeRates);
+  const imageMedia = media.filter((m) => m.type === 'image');
+
   return (
     <div className="space-y-6">
-      <header className="flex flex-col md:flex-row items-center gap-6 p-4 bg-card border rounded-lg">
-        {product.imageUrl ? (
-            <Image src={product.imageUrl} alt={product.name} width={128} height={128} className="rounded-lg object-cover w-32 h-32" />
+      <PageHeader title={product.name} description={`بارکد: ${product.id}`} />
+
+      <header className="flex flex-col items-center gap-6 rounded-2xl border border-white/10 bg-card/60 p-6 backdrop-blur-xl md:flex-row">
+        {cover?.type === 'image' ? (
+            <button type="button" className="cursor-zoom-in" onClick={() => setLightboxIndex(0)}>
+              <img src={cover.url} alt={product.name} className="rounded-lg object-cover w-32 h-32" />
+            </button>
+        ) : cover?.type === 'video' ? (
+            <video src={cover.url} controls className="rounded-lg object-cover w-32 h-32 bg-muted" />
         ) : (
             <div className="flex items-center justify-center w-32 h-32 bg-muted rounded-lg shrink-0">
                 <ImageIcon className="w-16 h-16 text-muted-foreground" />
             </div>
         )}
         <div className="flex-1">
-          <h1 className="text-3xl font-bold">{product.name}</h1>
-          <p className="text-muted-foreground">بارکد: {product.id}</p>
+          <p className="text-muted-foreground">قیمت فروش: {formatToman(effectivePrice)}</p>
         </div>
       </header>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">تعداد کل فروش</CardTitle>
-            <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+      {media.length > 0 && (
+        <Card variant="glass">
+          <CardHeader>
+            <CardTitle>رسانه‌های محصول</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalSold.toLocaleString('fa-IR')} عدد</div>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              {media.map((item, idx) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="aspect-square overflow-hidden rounded-md border bg-muted cursor-zoom-in"
+                  onClick={() => item.type === 'image' && setLightboxIndex(imageMedia.findIndex((m) => m.id === item.id))}
+                >
+                  {item.type === 'video' ? (
+                    <video src={item.url} controls className="h-full w-full object-cover" />
+                  ) : (
+                    <img src={item.url} alt={item.name || product.name} className="h-full w-full object-cover" />
+                  )}
+                </button>
+              ))}
+            </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">درآمد ناخالص</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalRevenue.toLocaleString('fa-IR')} {CURRENCY_SYMBOLS.TOMAN}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">سود ناخالص</CardTitle>
-             <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.grossProfit.toLocaleString('fa-IR')} {CURRENCY_SYMBOLS.TOMAN}</div>
-          </CardContent>
-        </Card>
+      )}
+
+      <ProductMediaViewer
+        media={media}
+        initialIndex={lightboxIndex ?? 0}
+        open={lightboxIndex !== null}
+        onOpenChange={(open) => !open && setLightboxIndex(null)}
+        productName={product.name}
+      />
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <StatCard label="تعداد کل فروش" value={`${stats.totalSold.toLocaleString('fa-IR')} عدد`} icon={ShoppingBag} />
+        <StatCard label="درآمد ناخالص" value={formatToman(stats.totalRevenue)} icon={DollarSign} />
+        <StatCard label="سود ناخالص" value={formatToman(stats.grossProfit)} icon={TrendingUp} trendUp={stats.grossProfit >= 0} />
       </div>
       
-      <Card>
+      <Card variant="glass">
           <CardHeader>
               <CardTitle>تاریخچه فروش</CardTitle>
           </CardHeader>
@@ -150,7 +181,7 @@ export default function ProductProfilePage() {
                         if (!item) return null;
                         return (
                            <TableRow key={sale.id}>
-                              <TableCell>{new Date(sale.date).toLocaleDateString('fa-IR')}</TableCell>
+                              <TableCell><PersianDate value={sale.date} /></TableCell>
                               <TableCell>{sale.customerName || 'ناشناس'}</TableCell>
                               <TableCell>{item.quantity}</TableCell>
                               <TableCell>{item.price.toLocaleString('fa-IR')}</TableCell>

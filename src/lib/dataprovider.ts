@@ -41,7 +41,10 @@ export interface DataProvider {
   applyRecurringExpenses: () => Promise<number>;
 
   // Employee Operations
-  addEmployee: (employeeData: Omit<Employee, 'id'>) => Promise<void>;
+  addEmployee: (employeeData: Omit<Employee, 'id' | 'recurringExpenseId'> & { email?: string; password?: string }) => Promise<void>;
+  updateEmployee: (id: string, data: Partial<Pick<Employee, 'name' | 'position' | 'salary' | 'isActive'>>) => Promise<void>;
+  activateEmployee: (id: string) => Promise<void>;
+  deactivateEmployee: (id: string) => Promise<void>;
   getAllEmployees: () => Promise<Employee[]>;
   deleteEmployee: (id: string) => Promise<void>;
 
@@ -52,6 +55,12 @@ export interface DataProvider {
   // Payment Operations
   addPayment: (paymentData: Omit<Payment, 'id' | 'attachmentIds'>, attachments: Omit<Attachment, 'id'| 'sourceId' | 'sourceType'>[]) => Promise<string>;
   getPaymentsByIds: (ids: string[]) => Promise<Payment[]>;
+  getAllPayments: () => Promise<Payment[]>;
+  updatePayment: (
+    payment: Payment,
+    attachments: Omit<Attachment, 'sourceId' | 'sourceType'>[]
+  ) => Promise<void>;
+  deletePayment: (id: string) => Promise<void>;
 
   // User Profile Operations
   getUserProfile: (userId: string) => Promise<UserProfile | null>;

@@ -2,11 +2,18 @@
   "name": "nextn",
   "version": "0.1.0",
   "private": true,
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "next dev --turbopack -p 9002",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "build": "next build",
+    "build:web:electron": "NEXT_PUBLIC_LOCAL_API_URL=http://127.0.0.1:43031 next build",
+    "build:backend": "npm --prefix backend run build",
+    "build:electron:assets": "npm run build:backend && npm run build:web:electron",
+    "dist:linux": "npm run build:electron:assets && electron-builder --linux AppImage",
+    "dist:win": "npm run build:electron:assets && electron-builder --win portable",
+    "dist:all": "npm run build:electron:assets && electron-builder --linux AppImage --win portable",
     "start": "NODE_ENV=production node server.js",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
@@ -41,6 +48,7 @@
     "cmdk": "^1.0.0",
     "date-fns": "^3.6.0",
     "dotenv": "^16.5.0",
+    "embla-carousel-autoplay": "^8.6.0",
     "embla-carousel-react": "^8.6.0",
     "firebase": "^11.9.1",
     "genkit": "^1.14.1",
@@ -52,6 +60,7 @@
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.54.2",
+    "react-multi-date-picker": "^4.5.2",
     "recharts": "^2.15.1",
     "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",
@@ -61,10 +70,12 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "electron": "^41.7.1",
+    "electron-builder": "^26.15.3",
     "genkit-cli": "^1.14.1",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
   },
-  "packageManager": "pnpm@10.15.1+sha512.34e538c329b5553014ca8e8f4535997f96180a1d0f614339357449935350d924e22f8614682191264ec33d1462ac21561aff97f6bb18065351c162c7e8f6de67"
+  "packageManager": "npm@10.8.2"
 }

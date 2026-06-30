@@ -9,6 +9,7 @@ import {
     getDocs,
     setDoc,
     deleteDoc,
+    updateDoc,
     writeBatch,
     runTransaction,
     query,
@@ -353,6 +354,18 @@ export const FirestoreDataProvider = (userId: string, isSuperAdmin: boolean): Da
       batch.delete(doc(db, EMPLOYEES_COLLECTION, id));
       await batch.commit();
     },
+    updateEmployee: async (id, data) => {
+      const db = getDb();
+      await updateDoc(doc(db, EMPLOYEES_COLLECTION, id), data as Record<string, unknown>);
+    },
+    activateEmployee: async (id) => {
+      const db = getDb();
+      await updateDoc(doc(db, EMPLOYEES_COLLECTION, id), { isActive: true });
+    },
+    deactivateEmployee: async (id) => {
+      const db = getDb();
+      await updateDoc(doc(db, EMPLOYEES_COLLECTION, id), { isActive: false });
+    },
 
     // Attachment Operations
     getAttachmentsBySourceId: async (sourceId) => {
@@ -400,6 +413,47 @@ export const FirestoreDataProvider = (userId: string, isSuperAdmin: boolean): Da
       const paymentPromises = validIds.map(id => getDoc(doc(db, PAYMENTS_COLLECTION, id)));
       const paymentDocs = await Promise.all(paymentPromises);
       return paymentDocs.filter(doc => doc.exists()).map(doc => doc.data() as Payment);
+    },
+    getAllPayments: async () => {
+      const db = getDb();
+      const querySnapshot = await getDocs(collection(db, PAYMENTS_COLLECTION));
+      return querySnapshot.docs
+        .map(doc => doc.data() as Payment)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    },
+    updatePayment: async (payment, attachments) => {
+      const db = getDb();
+      const batch = writeBatch(db);
+      const currentAttachments = await FirestoreDataProvider(userId, isSuperAdmin).getAttachmentsBySourceId(payment.id);
+      const incomingExistingIds = attachments.filter(att => att.id && !att.id.startsWith('new-')).map(att => att.id);
+
+      currentAttachments
+        .filter(att => !incomingExistingIds.includes(att.id))
+        .forEach(att => batch.delete(doc(db, ATTACHMENTS_COLLECTION, att.id)));
+
+      const attachmentIds = attachments.map(att => {
+        const attachmentId = att.id && !att.id.startsWith('new-')
+          ? att.id
+          : Date.now().toString() + Math.random();
+        batch.set(doc(db, ATTACHMENTS_COLLECTION, attachmentId), {
+          ...att,
+          id: attachmentId,
+          sourceId: payment.id,
+          sourceType: 'payment',
+        });
+        return attachmentId;
+      });
+
+      batch.set(doc(db, PAYMENTS_COLLECTION, payment.id), { ...payment, attachmentIds });
+      await batch.commit();
+    },
+    deletePayment: async (id) => {
+      const db = getDb();
+      const batch = writeBatch(db);
+      const attachments = await FirestoreDataProvider(userId, isSuperAdmin).getAttachmentsBySourceId(id);
+      attachments.forEach(att => batch.delete(doc(db, ATTACHMENTS_COLLECTION, att.id)));
+      batch.delete(doc(db, PAYMENTS_COLLECTION, id));
+      await batch.commit();
     },
 
     // User Profile Operations

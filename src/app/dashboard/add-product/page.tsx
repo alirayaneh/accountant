@@ -5,8 +5,7 @@ import { useRef, useEffect, useState } from 'react';
 import { useForm, useFieldArray, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Barcode, PlusCircle, Trash2, Loader2, Image as ImageIcon, X } from 'lucide-react';
-import Image from 'next/image';
+import { Barcode, PlusCircle, Trash2, Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -40,6 +39,16 @@ import { calculateSellingPrice, CURRENCY_SYMBOLS, calculateTotalCostInToman } fr
 import { Separator } from '@/components/ui/separator';
 import { useAppContext } from '@/components/app-provider';
 import Link from 'next/link';
+import { ProductMediaManager } from '@/components/product-media-manager';
+import { PageHeader } from '@/components/layout/page-header';
+import { withLegacyImageUrl } from '@/lib/product-media';
+
+const mediaSchema = z.object({
+  id: z.string(),
+  url: z.string(),
+  type: z.enum(['image', 'video']),
+  name: z.string().optional(),
+});
 
 const productSchema = z.object({
   id: z.string().min(1, 'بارکد الزامی است'),
@@ -48,6 +57,7 @@ const productSchema = z.object({
   lowStockThreshold: z.coerce.number().min(0, 'آستانه نمی‌تواند منفی باشد'),
   profitMargin: z.coerce.number().min(0, 'حاشیه سود نمی‌تواند منفی باشد'),
   imageUrl: z.string().optional(),
+  media: z.array(mediaSchema).default([]),
   costs: z.array(
     z.object({
       id: z.string(),
@@ -88,6 +98,7 @@ export default function AddProductPage() {
       profitMargin: 20,
       costs: [],
       imageUrl: '',
+      media: [],
     },
   });
 
@@ -107,22 +118,6 @@ export default function AddProductPage() {
     setCalculatedPrice(newPrice);
   }, [watchedValues, exchangeRates]);
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && db) {
-      try {
-        const base64 = await db.uploadFile(file);
-        form.setValue('imageUrl', base64);
-      } catch (error) {
-        toast({
-            variant: 'destructive',
-            title: 'خطا در آپلود تصویر',
-            description: 'نتوانستیم تصویر را آپلود کنیم. لطفا دوباره تلاش کنید.',
-        });
-      }
-    }
-  }
-
   const onSubmit: SubmitHandler<z.infer<typeof productSchema>> = async (data) => {
     if (!db) return;
     try {
@@ -138,10 +133,10 @@ export default function AddProductPage() {
       
       const finalPrice = calculateSellingPrice({...data, price: 0} as Product, exchangeRates);
 
-      const newProduct: Product = {
+      const newProduct: Product = withLegacyImageUrl({
         ...data,
         price: finalPrice,
-      };
+      });
 
       await db.addProduct(newProduct);
 
@@ -163,15 +158,20 @@ export default function AddProductPage() {
   };
 
   const totalCost = calculateTotalCostInToman(watchedValues.costs as ProductCost[], exchangeRates);
-  const imageUrl = form.watch('imageUrl');
+  const media = form.watch('media') || [];
 
   return (
-    <div className="flex justify-center items-start pt-10">
-      <Card className="w-full max-w-2xl">
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="افزودن محصول"
+        description="جزئیات محصول و هزینه‌های مربوط به آن را وارد کنید"
+      />
+    <div className="grid gap-8 lg:grid-cols-3">
+      <Card variant="glass" className="lg:col-span-2">
         <CardHeader>
-          <CardTitle className="text-2xl">افزودن محصول جدید</CardTitle>
+          <CardTitle>اطلاعات محصول</CardTitle>
           <CardDescription>
-            جزئیات محصول و هزینه‌های مربوط به آن را وارد کنید.
+            بارکد، نام، موجودی و هزینه‌ها
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -245,38 +245,28 @@ export default function AddProductPage() {
 
               <Separator />
 
-              {/* Image Upload Section */}
+              {/* Media Upload Section */}
               <div className="space-y-2">
-                 <FormLabel>تصویر محصول</FormLabel>
-                {imageUrl ? (
-                    <div className="relative w-32 h-32">
-                        <Image src={imageUrl} alt="پیش‌نمایش محصول" layout="fill" className="rounded-md object-cover" />
-                        <Button type="button" size="icon" variant="destructive" className="absolute -top-2 -right-2 h-6 w-6 z-10" onClick={() => form.setValue('imageUrl', '')}>
-                            <X className="h-4 w-4"/>
-                        </Button>
-                    </div>
-                ) : (
-                    <FormField
+                 <FormLabel>تصاویر و ویدئوهای محصول</FormLabel>
+                 <FormDescription>
+                    می‌توانید چند تصویر یا ویدئو برای محصول اضافه کنید.
+                 </FormDescription>
+                 <FormField
                     control={form.control}
-                    name="imageUrl"
+                    name="media"
                     render={() => (
                         <FormItem>
                         <FormControl>
-                             <div className="flex items-center justify-center w-full">
-                                <label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-card">
-                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                        <ImageIcon className="w-8 h-8 mb-4 text-muted-foreground" />
-                                        <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">برای آپلود کلیک کنید</span> یا فایل را بکشید</p>
-                                    </div>
-                                    <Input id="dropzone-file" type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                                </label>
-                            </div> 
+                            <ProductMediaManager
+                              value={media}
+                              onChange={(value) => form.setValue('media', value, { shouldDirty: true })}
+                              uploadFile={(file) => db!.uploadFile(file)}
+                            />
                         </FormControl>
                          <FormMessage />
                         </FormItem>
                     )}
-                    />
-                )}
+                  />
               </div>
 
 
@@ -360,43 +350,49 @@ export default function AddProductPage() {
               </div>
 
               <Separator />
+
+              <FormField
+                control={form.control}
+                name="profitMargin"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>حاشیه سود (%)</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="20" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               
-              {/* Pricing Section */}
-                <div className="space-y-4">
-                    <h3 className="text-lg font-medium">قیمت‌گذاری</h3>
-                     <FormField
-                        control={form.control}
-                        name="profitMargin"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>حاشیه سود (%)</FormLabel>
-                            <FormControl>
-                                <Input type="number" placeholder="20" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                        />
-                    <div className="p-4 border rounded-md bg-muted">
-                        <p className="text-sm text-muted-foreground">قیمت فروش محاسبه‌شده</p>
-                        <p className="text-2xl font-bold">
-                            {calculatedPrice.toLocaleString('fa-IR')} {CURRENCY_SYMBOLS.TOMAN}
-                        </p>
-                         <FormDescription>
-                            این قیمت بر اساس مجموع هزینه‌ها (شامل: {totalCost.toLocaleString('fa-IR')} تومان) و حاشیه سود ({watchedValues.profitMargin}٪) محاسبه می‌شود.
-                        </FormDescription>
-                    </div>
-                </div>
-
-
-              <Button type="submit" className="w-full" disabled={form.formState.isSubmitting || !db}>
-                {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+              <Button type="submit" className="w-full" variant="gradient" disabled={form.formState.isSubmitting || !db}>
+                {form.formState.isSubmitting ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <PlusCircle className="me-2 h-4 w-4" />}
                 {form.formState.isSubmitting ? "در حال افزودن..." : "افزودن محصول"}
               </Button>
             </form>
           </Form>
         </CardContent>
       </Card>
+
+      <Card variant="glass" className="h-fit lg:sticky lg:top-24">
+        <CardHeader>
+          <CardTitle>پیش‌نمایش قیمت</CardTitle>
+          <CardDescription>محاسبه لحظه‌ای بر اساس هزینه‌ها</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <p className="text-sm text-muted-foreground">قیمت فروش محاسبه‌شده</p>
+            <p className="tabular-nums text-3xl font-bold text-primary">
+              {calculatedPrice.toLocaleString('fa-IR')} {CURRENCY_SYMBOLS.TOMAN}
+            </p>
+          </div>
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <p>هزینه تمام‌شده: {totalCost.toLocaleString('fa-IR')} تومان</p>
+            <p>حاشیه سود: {watchedValues.profitMargin}٪</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
     </div>
   );
 }

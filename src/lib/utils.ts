@@ -26,6 +26,12 @@ export function calculateSellingPrice(product: Product, rates: ExchangeRate[]): 
   return Math.round(totalCost + profit);
 }
 
+export function getEffectiveProductPrice(product: Product, rates: ExchangeRate[]): number {
+  const hasForeignCost = product.costs?.some(c => c.currency !== 'TOMAN');
+  if (!hasForeignCost) return product.price;
+  return calculateSellingPrice(product, rates);
+}
+
 export const CURRENCY_SYMBOLS: Record<Currency, string> = {
   TOMAN: 'تومان',
   USD: '$',

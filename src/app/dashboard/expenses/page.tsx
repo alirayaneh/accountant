@@ -1,11 +1,11 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { PlusCircle, Trash2, Receipt, Repeat, RefreshCw, Paperclip, Pencil, Loader2 } from 'lucide-react';
+import { PlusCircle, Trash2, Receipt, Repeat, RefreshCw, Paperclip, Pencil, Loader2, Search } from 'lucide-react';
 import type { Expense, RecurringExpense, RecurringExpenseFrequency, Attachment } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -39,6 +39,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { CURRENCY_SYMBOLS } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { PageHeader } from '@/components/layout/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
@@ -46,6 +48,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAppContext } from '@/components/app-provider';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PersianDate, PersianDatePicker } from '@/components/persian-date';
+import { Badge } from '@/components/ui/badge';
+import { formatPersianDate } from '@/lib/date-utils';
+
+const PAGE_SIZE = 10;
+type ExpenseTypeFilter = 'all' | 'one-time' | 'recurring';
 
 const attachmentSchema = z.object({
   description: z.string().optional(),
@@ -90,7 +98,7 @@ function AttachmentForm({ onAddAttachment }: { onAddAttachment: (data: z.infer<t
     
     const handleSubmit = (data: z.infer<typeof attachmentSchema>) => {
         onAddAttachment(data);
-        form.reset();
+        form.reset({ description: '', receiptNumber: '', receiptImage: '', date: new Date().toISOString() });
         setPreview('');
     }
 
@@ -104,7 +112,7 @@ function AttachmentForm({ onAddAttachment }: { onAddAttachment: (data: z.infer<t
                         <FormItem>
                         <FormLabel>تاریخ و ساعت سند</FormLabel>
                         <FormControl>
-                            <Input type="datetime-local" {...field} />
+                            <PersianDatePicker includeTime value={field.value} onChange={field.onChange} />
                         </FormControl>
                         </FormItem>
                     )}
@@ -170,7 +178,7 @@ function ExpenseForm({ onExpenseAdded, expenseToEdit, onExpenseUpdated }: { onEx
     resolver: zodResolver(expenseSchema),
     defaultValues: expenseToEdit ? {
         ...expenseToEdit,
-        date: expenseToEdit.date.slice(0, 16)
+        date: expenseToEdit.date
     } : { title: '', amount: 0, date: new Date().toISOString().slice(0, 16) },
   });
 
@@ -220,7 +228,7 @@ function ExpenseForm({ onExpenseAdded, expenseToEdit, onExpenseUpdated }: { onEx
   };
 
   return (
-    <Card>
+    <Card variant="glass">
       <CardHeader>
         <CardTitle>{expenseToEdit ? 'ویرایش هزینه' : 'ثبت هزینه لحظه‌ای'}</CardTitle>
         <CardDescription>{expenseToEdit ? 'جزئیات هزینه را ویرایش کنید.' : 'هزینه‌های جاری و غیرتکراری خود را در این قسمت وارد کنید.'}</CardDescription>
@@ -262,7 +270,7 @@ function ExpenseForm({ onExpenseAdded, expenseToEdit, onExpenseUpdated }: { onEx
                     <FormItem>
                     <FormLabel>تاریخ و ساعت هزینه</FormLabel>
                     <FormControl>
-                        <Input type="datetime-local" {...field} />
+                        <PersianDatePicker includeTime value={field.value} onChange={field.onChange} />
                     </FormControl>
                     <FormMessage />
                     </FormItem>
@@ -362,7 +370,7 @@ function RecurringExpenseForm({ onRecurringExpenseAdded }: { onRecurringExpenseA
     };
 
     return (
-        <Card>
+        <Card variant="glass">
         <CardHeader>
             <CardTitle>تعریف هزینه دوره‌ای</CardTitle>
             <CardDescription>هزینه‌های ثابت مانند اجاره را تعریف کنید تا به طور خودکار ثبت شوند.</CardDescription>
@@ -425,7 +433,7 @@ function RecurringExpenseForm({ onRecurringExpenseAdded }: { onRecurringExpenseA
                             <FormItem>
                             <FormLabel>تاریخ اولین پرداخت</FormLabel>
                             <FormControl>
-                                <Input type="date" {...field} />
+                                <PersianDatePicker value={field.value} onChange={field.onChange} />
                             </FormControl>
                             <FormMessage />
                             </FormItem>
@@ -448,7 +456,7 @@ function RecurringExpenseForm({ onRecurringExpenseAdded }: { onRecurringExpenseA
                                 <p>{item.title} - {item.amount.toLocaleString('fa-IR')} تومان</p>
                                 <p className="text-xs text-muted-foreground">
                                     تکرار: {item.frequency === 'monthly' ? 'ماهانه' : 'سالانه'} - 
-                                    شروع از: {new Date(item.startDate).toLocaleDateString('fa-IR')}
+                                    شروع از: <PersianDate value={item.startDate} />
                                 </p>
                             </div>
                             <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}>
@@ -496,9 +504,17 @@ function ExpenseListItem({ expense, onUpdate }: { expense: Expense & { attachmen
                     <Receipt className="h-5 w-5" />
                 </div>
                 <div>
-                    <p className="font-semibold">{expense.title}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold">{expense.title}</p>
+                        {expense.recurringExpenseId && (
+                            <Badge variant="secondary" className="gap-1 text-xs">
+                                <Repeat className="h-3 w-3" />
+                                دوره‌ای
+                            </Badge>
+                        )}
+                    </div>
                     <p className="text-sm text-muted-foreground">
-                        {new Date(expense.date).toLocaleString('fa-IR', { dateStyle: 'short', timeStyle: 'short'})}
+                        <PersianDate value={expense.date} format="dateTime" />
                     </p>
                 </div>
             </div>
@@ -516,7 +532,7 @@ function ExpenseListItem({ expense, onUpdate }: { expense: Expense & { attachmen
                                 {expense.attachments.map(att => (
                                     <li key={att.id} className="border p-2 rounded-md">
                                         <p>{att.description || 'سند'}</p>
-                                        <p className="text-xs text-muted-foreground">{new Date(att.date).toLocaleString('fa-IR', { dateStyle: 'short', timeStyle: 'short'})} - {att.receiptNumber}</p>
+                                        <p className="text-xs text-muted-foreground"><PersianDate value={att.date} format="dateTime" /> - {att.receiptNumber}</p>
                                         {att.receiptImage && <img src={att.receiptImage} alt="رسید" className="mt-2 max-w-full h-auto rounded" />}
                                     </li>
                                 ))}
@@ -573,12 +589,18 @@ export default function ExpensesPage() {
   const { db, isLoading, setGlobalLoading } = useAppContext();
   const [expenses, setExpenses] = useState<(Expense & { attachments: Attachment[] })[]>([]);
   const [isProcessingRecurring, setIsProcessingRecurring] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState<ExpenseTypeFilter>('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
 
   const fetchExpenses = async () => {
     if (!db) return;
     setGlobalLoading(true);
     try {
+        await db.applyRecurringExpenses();
         const allExpenses = await db.getAllExpenses();
         const expensesWithAttachments = await Promise.all(allExpenses.map(async (exp) => {
             const attachments = await db.getAttachmentsBySourceId(exp.id);
@@ -595,6 +617,45 @@ export default function ExpensesPage() {
         setGlobalLoading(false);
     }
   };
+
+  const filteredExpenses = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+
+    return expenses.filter((expense) => {
+      if (typeFilter === 'one-time' && expense.recurringExpenseId) return false;
+      if (typeFilter === 'recurring' && !expense.recurringExpenseId) return false;
+
+      if (dateFrom && new Date(expense.date) < new Date(dateFrom)) return false;
+      if (dateTo) {
+        const to = new Date(dateTo);
+        to.setHours(23, 59, 59, 999);
+        if (new Date(expense.date) > to) return false;
+      }
+
+      if (!query) return true;
+
+      const searchable = [
+        expense.title,
+        expense.amount.toString(),
+        formatPersianDate(expense.date),
+        formatPersianDate(expense.date, 'dateTime'),
+        expense.recurringExpenseId ? 'دوره‌ای' : 'لحظه‌ای',
+        ...expense.attachments.flatMap((att) => [att.description || '', att.receiptNumber || '']),
+      ].join(' ').toLowerCase();
+
+      return searchable.includes(query);
+    });
+  }, [expenses, searchTerm, typeFilter, dateFrom, dateTo]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredExpenses.length / PAGE_SIZE));
+  const paginatedExpenses = filteredExpenses.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, typeFilter, dateFrom, dateTo]);
   
   const handleApplyRecurring = async () => {
       if (!db) return;
@@ -647,12 +708,14 @@ export default function ExpensesPage() {
   }
 
   return (
-    <div className="grid md:grid-cols-3 gap-8">
+    <div className="flex flex-col gap-6">
+      <PageHeader title="مخارج" description="ثبت هزینه‌های لحظه‌ای و دوره‌ای" />
+    <div className="grid gap-8 md:grid-cols-3">
        <div className="md:col-span-1">
          <Tabs defaultValue="one-time">
-            <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="one-time"><Receipt className="w-4 h-4 ml-1" />لحظه‌ای</TabsTrigger>
-                <TabsTrigger value="recurring"><Repeat className="w-4 h-4 ml-1" />دوره‌ای</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 rounded-xl bg-white/5">
+                <TabsTrigger value="one-time" className="rounded-lg"><Receipt className="ms-1 h-4 w-4" />لحظه‌ای</TabsTrigger>
+                <TabsTrigger value="recurring" className="rounded-lg"><Repeat className="ms-1 h-4 w-4" />دوره‌ای</TabsTrigger>
             </TabsList>
             <TabsContent value="one-time">
                 <ExpenseForm onExpenseAdded={fetchExpenses} onExpenseUpdated={fetchExpenses} />
@@ -663,44 +726,111 @@ export default function ExpensesPage() {
         </Tabs>
       </div>
       <div className="md:col-span-2">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">لیست مخارج ثبت‌شده</h1>
-          <Button 
-            onClick={handleApplyRecurring} 
-            variant="outline" 
-            size="sm"
-            className="flex items-center gap-2"
-            disabled={isProcessingRecurring}
-          >
-            <RefreshCw className={`h-4 w-4 ${isProcessingRecurring ? 'animate-spin' : ''}`} />
-            {isProcessingRecurring ? 'در حال پردازش...' : 'بررسی و ثبت هزینه‌های دوره‌ای'}
-          </Button>
+        <div className="mb-6 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <h2 className="text-lg font-semibold">لیست مخارج ثبت‌شده</h2>
+            <Button 
+              onClick={handleApplyRecurring} 
+              variant="ghost-glass" 
+              size="sm"
+              className="flex items-center gap-2"
+              disabled={isProcessingRecurring}
+            >
+              <RefreshCw className={`h-4 w-4 ${isProcessingRecurring ? 'animate-spin' : ''}`} />
+              {isProcessingRecurring ? 'در حال پردازش...' : 'بررسی هزینه‌های دوره‌ای'}
+            </Button>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="جستجو (عنوان، مبلغ، شماره سند...)"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pr-9"
+              />
+            </div>
+            <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as ExpenseTypeFilter)}>
+              <SelectTrigger className="w-full sm:w-[160px]">
+                <SelectValue placeholder="نوع هزینه" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">همه</SelectItem>
+                <SelectItem value="one-time">لحظه‌ای</SelectItem>
+                <SelectItem value="recurring">دوره‌ای</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="w-full sm:w-[150px]"
+              title="از تاریخ"
+            />
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="w-full sm:w-[150px]"
+              title="تا تاریخ"
+            />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {filteredExpenses.length.toLocaleString('fa-IR')} هزینه
+            {filteredExpenses.length !== expenses.length &&
+              ` (از ${expenses.length.toLocaleString('fa-IR')} کل)`}
+            {' — '}
+            جمع: {filteredExpenses.reduce((s, e) => s + e.amount, 0).toLocaleString('fa-IR')} {CURRENCY_SYMBOLS.TOMAN}
+          </p>
         </div>
-        <Card>
+        <Card variant="glass">
           <CardContent className="p-0">
-             <ScrollArea className="h-[70vh]">
-                {expenses.length > 0 ? (
+             <ScrollArea className="h-[65vh]">
+                {paginatedExpenses.length > 0 ? (
                 <ul className="divide-y divide-border">
-                    {expenses.map((expense) => (
+                    {paginatedExpenses.map((expense) => (
                        <ExpenseListItem key={expense.id} expense={expense} onUpdate={fetchExpenses} />
                     ))}
                 </ul>
                 ) : (
-                <div className="flex flex-1 items-center justify-center p-10 text-center h-[70vh]">
-                    <div>
-                        <h3 className="text-xl font-bold tracking-tight">
-                        هنوز هزینه‌ای ثبت نشده است
-                        </h3>
-                        <p className="text-sm text-muted-foreground mt-2">
-                        برای شروع، اولین هزینه خود را از فرم کنار صفحه ثبت کنید.
-                        </p>
-                    </div>
-                </div>
+                <EmptyState
+                  title={expenses.length === 0 ? 'هنوز هزینه‌ای ثبت نشده است' : 'هزینه‌ای یافت نشد'}
+                  description={
+                    expenses.length === 0
+                      ? 'برای شروع، اولین هزینه خود را از فرم کنار صفحه ثبت کنید.'
+                      : 'فیلترها یا عبارت جستجو را تغییر دهید.'
+                  }
+                  className="m-4 border-none bg-transparent"
+                />
                 )}
              </ScrollArea>
+             {filteredExpenses.length > PAGE_SIZE && (
+               <div className="flex items-center justify-between border-t p-4">
+                 <Button
+                   variant="outline"
+                   size="sm"
+                   disabled={currentPage <= 1}
+                   onClick={() => setCurrentPage((p) => p - 1)}
+                 >
+                   قبلی
+                 </Button>
+                 <span className="text-sm text-muted-foreground">
+                   صفحه {currentPage.toLocaleString('fa-IR')} از {totalPages.toLocaleString('fa-IR')}
+                 </span>
+                 <Button
+                   variant="outline"
+                   size="sm"
+                   disabled={currentPage >= totalPages}
+                   onClick={() => setCurrentPage((p) => p + 1)}
+                 >
+                   بعدی
+                 </Button>
+               </div>
+             )}
           </CardContent>
         </Card>
       </div>
+    </div>
     </div>
   );
 }

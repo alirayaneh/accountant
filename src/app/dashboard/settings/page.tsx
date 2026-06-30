@@ -2,10 +2,11 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Trash2, PlusCircle, Users, Database, Loader2, Store, Banknote, Tag } from 'lucide-react';
+import { Trash2, PlusCircle, Users, Database, Loader2, Store, Banknote, Tag, Pencil } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -28,11 +29,31 @@ import { useToast } from '@/hooks/use-toast';
 
 import type { ExchangeRate, CostTitle, Employee, AppSettings } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PageHeader } from '@/components/layout/page-header';
 import { useAppContext } from '@/components/app-provider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { StorageType } from '@/components/app-provider';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getLocalApiURL, getRemoteApiURL } from '@/lib/api-url';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const appSettingsSchema = z.object({
   shopName: z.string().min(1, 'نام فروشگاه الزامی است'),
@@ -55,72 +76,74 @@ const employeeSchema = z.object({
   name: z.string().min(1, 'نام کارمند الزامی است'),
   position: z.string().min(1, 'سمت الزامی است'),
   salary: z.coerce.number().min(0, 'حقوق نمی‌تواند منفی باشد'),
+  email: z.string().email('ایمیل نامعتبر است').optional().or(z.literal('')),
+  password: z.string().min(6, 'رمز عبور حداقل ۶ کاراکتر').optional().or(z.literal('')),
 });
 
 
 function AppSettingsForm() {
-    const { toast } = useToast();
-    const { db, settings, setSettings } = useAppContext();
-    const form = useForm<z.infer<typeof appSettingsSchema>>({
-        resolver: zodResolver(appSettingsSchema),
-        defaultValues: {
-            shopName: settings.shopName || '',
-        },
-    });
-    
-    const { formState: { isSubmitting } } = form;
+  const { toast } = useToast();
+  const { db, settings, setSettings } = useAppContext();
+  const form = useForm<z.infer<typeof appSettingsSchema>>({
+    resolver: zodResolver(appSettingsSchema),
+    defaultValues: {
+      shopName: settings.shopName || '',
+    },
+  });
 
-    useEffect(() => {
-        form.reset({ shopName: settings.shopName || '' });
-    }, [settings, form]);
+  const { formState: { isSubmitting } } = form;
 
-    const onSubmit = async (data: z.infer<typeof appSettingsSchema>) => {
-        if(!db) return;
-        try {
-            const newSettings = { ...settings, ...data };
-            await db.saveAppSettings(newSettings);
-            setSettings(newSettings);
-            toast({ title: 'تنظیمات ذخیره شد', description: 'نام فروشگاه با موفقیت به‌روزرسانی شد.' });
-        } catch (error) {
-            toast({
-                variant: 'destructive',
-                title: 'خطا',
-                description: 'ذخیره تنظیمات ناموفق بود.',
-            });
-        }
+  useEffect(() => {
+    form.reset({ shopName: settings.shopName || '' });
+  }, [settings, form]);
+
+  const onSubmit = async (data: z.infer<typeof appSettingsSchema>) => {
+    if (!db) return;
+    try {
+      const newSettings = { ...settings, ...data };
+      await db.saveAppSettings(newSettings);
+      setSettings(newSettings);
+      toast({ title: 'تنظیمات ذخیره شد', description: 'نام فروشگاه با موفقیت به‌روزرسانی شد.' });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'خطا',
+        description: 'ذخیره تنظیمات ناموفق بود.',
+      });
     }
-    
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle>اطلاعات فروشگاه</CardTitle>
-                <CardDescription>نام فروشگاه خود را برای نمایش در برنامه تنظیم کنید.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                        <FormField
-                            control={form.control}
-                            name="shopName"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>نام فروشگاه</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="نام فروشگاه شما" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <Button type="submit" disabled={isSubmitting || !db}>
-                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            {isSubmitting ? 'در حال ذخیره...' : 'ذخیره نام'}
-                        </Button>
-                    </form>
-                </Form>
-            </CardContent>
-        </Card>
-    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>اطلاعات فروشگاه</CardTitle>
+        <CardDescription>نام فروشگاه خود را برای نمایش در برنامه تنظیم کنید.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="shopName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>نام فروشگاه</FormLabel>
+                  <FormControl>
+                    <Input placeholder="نام فروشگاه شما" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button type="submit" disabled={isSubmitting || !db}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isSubmitting ? 'در حال ذخیره...' : 'ذخیره نام'}
+            </Button>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
+  );
 }
 
 function ExchangeRatesForm() {
@@ -235,7 +258,7 @@ function CostTitlesForm() {
       toast({ title: 'عنوان هزینه حذف شد', description: 'عنوان هزینه با موفقیت حذف شد.' });
       fetchCostTitles();
     } catch (error) {
-       toast({
+      toast({
         variant: 'destructive',
         title: 'خطا',
         description: 'حذف عنوان هزینه ناموفق بود.',
@@ -291,9 +314,14 @@ function EmployeeForm() {
   const { toast } = useToast();
   const { db, setGlobalLoading } = useAppContext();
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const form = useForm<z.infer<typeof employeeSchema>>({
     resolver: zodResolver(employeeSchema),
-    defaultValues: { name: '', position: '', salary: 0 },
+    defaultValues: { name: '', position: '', salary: 0, email: '', password: '' },
+  });
+
+  const editForm = useForm<{ name: string; position: string; salary: number; isActive: boolean }>({
+    defaultValues: { name: '', position: '', salary: 0, isActive: true },
   });
 
   const { formState: { isSubmitting } } = form;
@@ -313,15 +341,21 @@ function EmployeeForm() {
   const onSubmit = async (data: z.infer<typeof employeeSchema>) => {
     if (!db) return;
     try {
-      await db.addEmployee(data);
-      toast({ title: 'کارمند افزوده شد', description: 'کارمند جدید با موفقیت به سیستم اضافه شد.' });
-      form.reset();
+      const payload = {
+        name: data.name,
+        position: data.position,
+        salary: data.salary,
+        ...(data.email && data.password ? { email: data.email, password: data.password } : {}),
+      };
+      await db.addEmployee(payload);
+      toast({ title: 'کارمند افزوده شد', description: 'کارمند و هزینه دوره‌ای حقوق با موفقیت ایجاد شد.' });
+      form.reset({ name: '', position: '', salary: 0, email: '', password: '' });
       fetchEmployees();
     } catch (error) {
       toast({
         variant: 'destructive',
         title: 'خطا',
-        description: 'افزودن کارمند ناموفق بود.',
+        description: error instanceof Error ? error.message : 'افزودن کارمند ناموفق بود.',
       });
     }
   };
@@ -330,13 +364,40 @@ function EmployeeForm() {
     if (!db) return;
     try {
       await db.deleteEmployee(id);
-      toast({ title: 'کارمند حذف شد', description: 'کارمند با موفقیت حذف شد.' });
+      toast({ title: 'کارمند حذف شد', description: 'کارمند و هزینه دوره‌ای مرتبط حذف شد.' });
       fetchEmployees();
     } catch (error) {
-       toast({
+      toast({
         variant: 'destructive',
         title: 'خطا',
         description: 'حذف کارمند ناموفق بود.',
+      });
+    }
+  };
+
+  const openEdit = (employee: Employee) => {
+    setEditingEmployee(employee);
+    editForm.reset({
+      name: employee.name,
+      position: employee.position,
+      salary: employee.salary,
+      isActive: employee.isActive !== false,
+    });
+  };
+
+  const handleEditSave = async () => {
+    if (!db || !editingEmployee) return;
+    const data = editForm.getValues();
+    try {
+      await db.updateEmployee(editingEmployee.id, data);
+      toast({ title: 'کارمند به‌روز شد', description: 'اطلاعات و هزینه دوره‌ای حقوق همگام‌سازی شد.' });
+      setEditingEmployee(null);
+      fetchEmployees();
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'خطا',
+        description: 'به‌روزرسانی کارمند ناموفق بود.',
       });
     }
   };
@@ -345,51 +406,52 @@ function EmployeeForm() {
     <div className="space-y-6">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-4 border rounded-md">
-           <h3 className="text-lg font-medium">افزودن کارمند جدید</h3>
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>نام</FormLabel>
-                        <FormControl>
-                        <Input placeholder="نام کامل کارمند" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="position"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>سمت</FormLabel>
-                        <FormControl>
-                        <Input placeholder="مثال: فروشنده" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                 <FormField
-                    control={form.control}
-                    name="salary"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>حقوق ماهانه (تومان)</FormLabel>
-                        <FormControl>
-                        <Input type="number" placeholder="10,000,000" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-           </div>
+          <h3 className="text-lg font-medium">افزودن کارمند جدید</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <FormField control={form.control} name="name" render={({ field }) => (
+              <FormItem>
+                <FormLabel>نام</FormLabel>
+                <FormControl><Input placeholder="نام کامل کارمند" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="position" render={({ field }) => (
+              <FormItem>
+                <FormLabel>سمت</FormLabel>
+                <FormControl><Input placeholder="مثال: فروشنده" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="salary" render={({ field }) => (
+              <FormItem>
+                <FormLabel>حقوق ماهانه (تومان)</FormLabel>
+                <FormControl><Input type="number" placeholder="10,000,000" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+          </div>
+          <div className="rounded-md border p-4 space-y-4">
+            <h4 className="text-sm font-medium">ایجاد حساب کاربری (اختیاری)</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField control={form.control} name="email" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>ایمیل ورود</FormLabel>
+                  <FormControl><Input type="email" placeholder="employee@shop.com" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="password" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>رمز عبور</FormLabel>
+                  <FormControl><Input type="password" placeholder="حداقل ۶ کاراکتر" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+          </div>
           <Button type="submit" disabled={isSubmitting || !db}>
             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-            {isSubmitting ? "در حال افزودن..." : "افزودن کارمند"}
+            {isSubmitting ? 'در حال افزودن...' : 'افزودن کارمند'}
           </Button>
         </form>
       </Form>
@@ -398,21 +460,34 @@ function EmployeeForm() {
         {employees.length > 0 ? (
           <ul className="rounded-md border">
             {employees.map((item) => (
-              <li key={item.id} className="flex items-center justify-between p-3 border-b last:border-b-0">
-                <div className="flex items-center gap-3">
-                   <div className="p-2 rounded-full bg-muted">
-                        <Users className="h-5 w-5" />
+              <li key={item.id} className="flex items-center justify-between p-3 border-b last:border-b-0 gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="p-2 rounded-full bg-muted shrink-0">
+                    <Users className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold">{item.name}</p>
+                      {item.isActive === false ? (
+                        <Badge variant="secondary">غیرفعال</Badge>
+                      ) : (
+                        <Badge variant="chip">فعال</Badge>
+                      )}
+                      {item.userProfileId && (
+                        <Badge variant="outline">دارای حساب کاربری</Badge>
+                      )}
                     </div>
-                    <div>
-                        <p className="font-semibold">{item.name}</p>
-                        <p className="text-sm text-muted-foreground">{item.position}</p>
-                    </div>
+                    <p className="text-sm text-muted-foreground">{item.position}</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-4">
-                    <span className="font-mono text-sm">{item.salary.toLocaleString('fa-IR')} تومان</span>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="font-mono text-sm hidden sm:inline">{item.salary.toLocaleString('fa-IR')} تومان</span>
+                  <Button variant="ghost" size="icon" onClick={() => openEdit(item)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
                 </div>
               </li>
             ))}
@@ -421,86 +496,289 @@ function EmployeeForm() {
           <p className="text-sm text-muted-foreground text-center p-4">هیچ کارمندی ثبت نشده است.</p>
         )}
       </div>
+
+      <Dialog open={!!editingEmployee} onOpenChange={(open) => !open && setEditingEmployee(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>ویرایش کارمند</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>نام</Label>
+              <Input {...editForm.register('name')} />
+            </div>
+            <div>
+              <Label>سمت</Label>
+              <Input {...editForm.register('position')} />
+            </div>
+            <div>
+              <Label>حقوق ماهانه (تومان)</Label>
+              <Input type="number" {...editForm.register('salary', { valueAsNumber: true })} />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label>فعال</Label>
+              <Switch
+                checked={editForm.watch('isActive')}
+                onCheckedChange={(checked) => editForm.setValue('isActive', checked)}
+              />
+            </div>
+            <Button onClick={handleEditSave} className="w-full">ذخیره تغییرات</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 function StorageSettingsForm() {
-    const { toast } = useToast();
-    const { storageType, changeStorageType } = useAppContext();
+  const { toast } = useToast();
+  const { storageType, changeStorageType } = useAppContext();
+  const [pendingStorageType, setPendingStorageType] = useState<StorageType>(storageType);
+  const [testedStorageType, setTestedStorageType] = useState<StorageType | null>(null);
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
-    const handleStorageChange = (value: StorageType) => {
-        changeStorageType(value);
-        toast({
-            title: 'محل ذخیره‌سازی تغییر کرد',
-            description: `داده‌ها اکنون در ${value === 'cloud' ? 'فضای ابری' : 'مرورگر شما'} ذخیره می‌شوند.`,
-        });
-        window.location.reload();
+  const storageOptions = [
+    { value: 'sqlite' as const, label: 'SQLite (محلی)', desc: 'Backend API + SQLite — قابل حمل' },
+    { value: 'online' as const, label: 'آنلاین (سرور)', desc: 'Backend API + MySQL روی سرور' },
+  ];
+
+  useEffect(() => {
+    setPendingStorageType(storageType);
+    setTestedStorageType(null);
+  }, [storageType]);
+
+  const getApiURL = (value: StorageType) => (
+    value === 'online' ? getRemoteApiURL() : getLocalApiURL()
+  );
+
+  const testStorageConnection = async () => {
+    const option = storageOptions.find(o => o.value === pendingStorageType);
+
+    if (pendingStorageType === storageType) {
+      toast({
+        title: 'بدون تغییر',
+        description: 'محل ذخیره‌سازی انتخاب‌شده همین حالا فعال است.',
+      });
+      return;
     }
 
-    return (
-        <div className="space-y-4">
-            <Label>محل ذخیره‌سازی</Label>
-            <Select value={storageType} onValueChange={handleStorageChange}>
-                <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="انتخاب محل ذخیره" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="local">محلی (مرورگر)</SelectItem>
-                    <SelectItem value="cloud">ابری (Firebase)</SelectItem>
-                </SelectContent>
-            </Select>
-            <p className="text-sm text-muted-foreground">
-                داده‌های برنامه را می‌توانید به صورت محلی در مرورگر خود یا در فضای ابری با استفاده از Firebase ذخیره کنید.
-            </p>
+    setIsTestingConnection(true);
+    try {
+      if (pendingStorageType === 'sqlite' || pendingStorageType === 'online') {
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), 8000);
+        const response = await fetch(`${getApiURL(pendingStorageType)}/health`, {
+          signal: controller.signal,
+        });
+        window.clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error('پاسخ API نامعتبر بود.');
+        }
+      }
+
+      setTestedStorageType(pendingStorageType);
+      setIsConfirmOpen(true);
+      toast({
+        title: 'تست اتصال موفق بود',
+        description: `${option?.label || 'محل ذخیره‌سازی'} آماده استفاده است.`,
+      });
+    } catch (error) {
+      setTestedStorageType(null);
+      toast({
+        variant: 'destructive',
+        title: 'تست اتصال ناموفق بود',
+        description: error instanceof Error ? error.message : 'اتصال به محل ذخیره‌سازی برقرار نشد.',
+      });
+    } finally {
+      setIsTestingConnection(false);
+    }
+  };
+
+  const confirmStorageChange = () => {
+    const option = storageOptions.find(o => o.value === pendingStorageType);
+    changeStorageType(pendingStorageType);
+    toast({
+      title: 'محل ذخیره‌سازی تغییر کرد',
+      description: `داده‌ها از این پس در ${option?.desc || pendingStorageType} ذخیره می‌شوند.`,
+    });
+    window.location.reload();
+  };
+
+  const handleStorageSelect = (value: StorageType) => {
+    setPendingStorageType(value);
+    setTestedStorageType(null);
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('apiToken');
+    toast({
+      title: 'خروج از سیستم',
+      description: 'با موفقیت از API خارج شدید'
+    });
+    window.location.reload();
+  }
+
+  const isAPIMode = storageType === 'mysql' || storageType === 'sqlite' || storageType === 'online';
+  const hasToken = typeof window !== 'undefined' && localStorage.getItem('apiToken');
+  const selectedOption = storageOptions.find(option => option.value === pendingStorageType);
+  const currentOption = storageOptions.find(option => option.value === storageType);
+  const hasPendingChange = pendingStorageType !== storageType;
+
+  return (
+    <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label>محل ذخیره‌سازی</Label>
+          <Select onValueChange={handleStorageSelect} value={pendingStorageType}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="انتخاب محل ذخیره‌سازی" />
+            </SelectTrigger>
+            <SelectContent>
+              {storageOptions.map(option => (
+                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-    );
+
+        <div className="min-h-20 rounded-md border bg-muted/30 p-3 text-sm">
+          <p className="font-medium">
+            محل فعال: {currentOption?.label || storageType}
+          </p>
+          <p className="mt-1 text-muted-foreground">
+            {hasPendingChange
+              ? `انتخاب جدید: ${selectedOption?.label || pendingStorageType}. برای اعمال، ابتدا اتصال را تست کنید.`
+              : 'برای تغییر محل ذخیره‌سازی، یک گزینه دیگر را انتخاب کنید.'}
+          </p>
+          {testedStorageType === pendingStorageType && hasPendingChange && (
+            <p className="mt-2 text-green-600 dark:text-green-400">
+              تست اتصال با موفقیت انجام شد.
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            onClick={testStorageConnection}
+            disabled={!hasPendingChange || isTestingConnection}
+          >
+            {isTestingConnection && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isTestingConnection ? 'در حال تست اتصال...' : 'تست اتصال'}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsConfirmOpen(true)}
+            disabled={!hasPendingChange || testedStorageType !== pendingStorageType}
+          >
+            اعمال تغییر
+          </Button>
+        </div>
+
+        {isAPIMode && hasToken && (
+          <div className="bg-green-50 dark:bg-green-950 p-3 rounded-md border border-green-200 dark:border-green-800">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                  ✓ متصل به API
+                </p>
+                <p className="text-xs text-green-600 dark:text-green-400">
+                  شما وارد سیستم شده‌اید
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLogout}
+                className="text-red-600 hover:text-red-700"
+              >
+                خروج
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <p className="text-sm text-muted-foreground">
+          تغییر محل ذخیره‌سازی فقط بعد از تست اتصال و تایید نهایی اعمال می‌شود. در صورت تغییر به یک دیتابیس دیگر، وضعیت ورود مربوط به همان دیتابیس استفاده خواهد شد.
+        </p>
+      </div>
+
+      <AlertDialogContent dir="rtl">
+        <AlertDialogHeader>
+          <AlertDialogTitle>تغییر محل ذخیره‌سازی تایید شود؟</AlertDialogTitle>
+          <AlertDialogDescription>
+            اتصال به {selectedOption?.label || pendingStorageType} موفق بود. با تایید، محل ذخیره‌سازی برنامه تغییر می‌کند و صفحه برای بارگذاری دیتابیس جدید تازه‌سازی می‌شود.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>انصراف</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmStorageChange}>
+            تایید و اعمال تغییر
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
 }
 
 export default function SettingsPage() {
-  const { isLoading } = useAppContext();
-  
-  if(isLoading) {
-      return (
-          <div className="max-w-4xl mx-auto space-y-6">
-              <Skeleton className="h-10 w-32" />
-              <div className="space-y-4">
-                  <Skeleton className="h-8 w-full" />
-                  <Skeleton className="h-64 w-full" />
-              </div>
-          </div>
-      )
+  const { isLoading, user } = useAppContext();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (user?.role === 'employee') {
+      router.replace('/dashboard');
+    }
+  }, [user, router]);
+
+  if (user?.role === 'employee') {
+    return null;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-6">
+        <Skeleton className="h-10 w-32" />
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">تنظیمات</h1>
+    <div>
+      <PageHeader title="تنظیمات" description="پیکربندی فروشگاه، ارز، ذخیره‌سازی و کارمندان" />
       <Tabs defaultValue="general" dir="rtl">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="general"><Store className="w-4 h-4 ml-1" />عمومی</TabsTrigger>
-          <TabsTrigger value="data-storage"><Database className="w-4 h-4 ml-1" />ذخیره‌سازی</TabsTrigger>
-          <TabsTrigger value="exchange-rates"><Banknote className="w-4 h-4 ml-1" />نرخ‌های ارز</TabsTrigger>
-          <TabsTrigger value="cost-titles"><Tag className="w-4 h-4 ml-1" />عناوین هزینه</TabsTrigger>
-          <TabsTrigger value="employees"><Users className="w-4 h-4 ml-1" />کارمندان</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-5 rounded-xl bg-white/5">
+          <TabsTrigger value="general" className="rounded-lg"><Store className="ms-1 h-4 w-4" />عمومی</TabsTrigger>
+          <TabsTrigger value="data-storage" className="rounded-lg"><Database className="ms-1 h-4 w-4" />ذخیره‌سازی</TabsTrigger>
+          <TabsTrigger value="exchange-rates" className="rounded-lg"><Banknote className="ms-1 h-4 w-4" />نرخ‌های ارز</TabsTrigger>
+          <TabsTrigger value="cost-titles" className="rounded-lg"><Tag className="ms-1 h-4 w-4" />عناوین هزینه</TabsTrigger>
+          <TabsTrigger value="employees" className="rounded-lg"><Users className="ms-1 h-4 w-4" />کارمندان</TabsTrigger>
         </TabsList>
         <TabsContent value="general">
-            <AppSettingsForm />
+          <AppSettingsForm />
         </TabsContent>
-         <TabsContent value="data-storage">
-            <Card>
-                <CardHeader>
-                <CardTitle>محل ذخیره‌سازی داده‌ها</CardTitle>
-                <CardDescription>
-                    انتخاب کنید که داده‌های برنامه در مرورگر شما (محلی) یا در فضای ابری (Firebase Firestore) ذخیره شوند.
-                </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-8">
-                    <StorageSettingsForm />
-                </CardContent>
-            </Card>
+        <TabsContent value="data-storage">
+          <Card variant="glass">
+            <CardHeader>
+              <CardTitle>محل ذخیره‌سازی داده‌ها</CardTitle>
+              <CardDescription>
+                انتخاب بین SQLite محلی (قابل حمل) یا سرور آنلاین با MySQL.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-8">
+              <StorageSettingsForm />
+            </CardContent>
+          </Card>
         </TabsContent>
         <TabsContent value="exchange-rates">
-          <Card>
+          <Card variant="glass">
             <CardHeader>
               <CardTitle>تنظیم نرخ ارز</CardTitle>
               <CardDescription>
@@ -513,7 +791,7 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
         <TabsContent value="cost-titles">
-          <Card>
+          <Card variant="glass">
             <CardHeader>
               <CardTitle>مدیریت عناوین هزینه</CardTitle>
               <CardDescription>
@@ -525,8 +803,8 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
-         <TabsContent value="employees">
-          <Card>
+        <TabsContent value="employees">
+          <Card variant="glass">
             <CardHeader>
               <CardTitle>مدیریت کارمندان</CardTitle>
               <CardDescription>

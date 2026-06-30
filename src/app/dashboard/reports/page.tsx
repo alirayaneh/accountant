@@ -10,15 +10,21 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAppContext } from '@/components/app-provider';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, format } from 'date-fns';
+import { subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CURRENCY_SYMBOLS } from '@/lib/utils';
 import { Bot, Sparkles } from 'lucide-react';
+import { formatPersianDate } from '@/lib/date-utils';
+import { PageHeader } from '@/components/layout/page-header';
+import { StatCard } from '@/components/ui/stat-card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { formatToman } from '@/lib/format';
 
 type TimeRange = 'all' | 'last_year' | 'this_year' | 'last_month' | 'this_month' | 'last_week' | 'this_week';
 
 type ChartData = {
   name: string;
+  sortKey: string;
   فروش: number;
   'سود ناخالص': number;
   مخارج: number;
@@ -37,12 +43,14 @@ export default function ReportsPage() {
 
   useEffect(() => {
     if (!db) return;
+    const currentDb = db;
     async function fetchData() {
       setGlobalLoading(true);
       try {
-        const [allSales, allExpenses, allProducts] = await Promise.all([db.getAllSales(), db.getAllExpenses(), db.getAllProducts()]);
+        await currentDb.applyRecurringExpenses();
+        const [allSales, allExpenses, allProducts] = await Promise.all([currentDb.getAllSales(), currentDb.getAllExpenses(), currentDb.getAllProducts()]);
         const paymentIds = allSales.flatMap(s => s.paymentIds || []);
-        const allPayments = await db.getPaymentsByIds(paymentIds);
+        const allPayments = await currentDb.getPaymentsByIds(paymentIds);
         setSales(allSales);
         setExpenses(allExpenses);
         setPayments(allPayments);
@@ -157,13 +165,25 @@ export default function ReportsPage() {
     
     const dataMap = new Map<string, { فروش: number, 'سود ناخالص': number, مخارج: number }>();
     
-    let dateFormat = "yyyy/MM/dd";
+    let useMonthBuckets = false;
     if (timeRange === 'this_year' || timeRange === 'last_year' || (timeRange === 'all' && (sales.length > 30 || expenses.length > 30))) {
-        dateFormat = "yyyy/MM";
+        useMonthBuckets = true;
     }
 
+    const getDateKey = (value: string) => {
+      const date = new Date(value);
+      return useMonthBuckets
+        ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+        : date.toISOString().slice(0, 10);
+    };
+
+    const getDateLabel = (key: string) => {
+      const date = useMonthBuckets ? new Date(`${key}-01T00:00:00`) : new Date(`${key}T00:00:00`);
+      return formatPersianDate(date, useMonthBuckets ? 'month' : 'date');
+    };
+
     filteredSales.forEach(sale => {
-      const dateKey = format(new Date(sale.date), dateFormat);
+      const dateKey = getDateKey(sale.date);
       const saleItemsCost = sale.items.reduce((acc, item) => acc + (item.totalCost || 0), 0);
       const saleGrossProfit = sale.total - saleItemsCost;
       
@@ -174,7 +194,7 @@ export default function ReportsPage() {
     });
 
     filteredExpenses.forEach(expense => {
-      const dateKey = format(new Date(expense.date), dateFormat);
+      const dateKey = getDateKey(expense.date);
       const current = dataMap.get(dateKey) || { فروش: 0, 'سود ناخالص': 0, مخارج: 0 };
       current.مخارج += expense.amount;
       dataMap.set(dateKey, current);
@@ -182,11 +202,12 @@ export default function ReportsPage() {
 
     return Array.from(dataMap.entries())
         .map(([name, values]) => ({ 
-            name,
+            name: getDateLabel(name),
+            sortKey: name,
             ...values,
             'سود خالص': values['سود ناخالص'] - values.مخارج,
         }))
-        .sort((a,b) => new Date(a.name).getTime() - new Date(b.name).getTime());
+        .sort((a,b) => a.sortKey.localeCompare(b.sortKey));
 
   }, [filteredSales, filteredExpenses, timeRange, sales, expenses]);
 
@@ -212,7 +233,7 @@ export default function ReportsPage() {
   }, [filteredSales, filteredExpenses, payments]);
   
   const renderChart = (data: ChartData[], title: string) => (
-     <Card>
+     <Card variant="glass">
           <CardHeader>
             <CardTitle>{title}</CardTitle>
           </CardHeader>
@@ -265,9 +286,11 @@ export default function ReportsPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">گزارش‌ها</h1>
-        <div className="w-48">
+      <PageHeader
+        title="گزارش‌ها"
+        description="تحلیل فروش، سود و مخارج در بازه زمانی"
+        actions={
+          <div className="w-48">
             <Select value={timeRange} onValueChange={(value: TimeRange) => setTimeRange(value)}>
                 <SelectTrigger>
                     <SelectValue placeholder="انتخاب بازه زمانی" />
@@ -278,74 +301,25 @@ export default function ReportsPage() {
                     ))}
                 </SelectContent>
             </Select>
-        </div>
-      </div>
+          </div>
+        }
+      />
         {sales.length > 0 || expenses.length > 0 ? (
         <>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>مجموع فروش</CardTitle>
-                        <CardDescription>در بازه زمانی انتخاب شده</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-3xl font-bold">
-                            {totalSales.toLocaleString('fa-IR')} {CURRENCY_SYMBOLS.TOMAN}
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>سود ناخالص</CardTitle>
-                        <CardDescription>(فروش - قیمت خرید)</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                         <p className="text-3xl font-bold">
-                            {totalGrossProfit.toLocaleString('fa-IR')} {CURRENCY_SYMBOLS.TOMAN}
-                        </p>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>مجموع مخارج</CardTitle>
-                        <CardDescription>هزینه‌های جاری ثبت‌شده</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                         <p className="text-3xl font-bold text-destructive">
-                            {totalExpenses.toLocaleString('fa-IR')} {CURRENCY_SYMBOLS.TOMAN}
-                        </p>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>سود خالص</CardTitle>
-                        <CardDescription>(سود ناخالص - مخارج)</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                         <p className="text-3xl font-bold text-green-600">
-                            {totalNetProfit.toLocaleString('fa-IR')} {CURRENCY_SYMBOLS.TOMAN}
-                        </p>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>مجموع مطالبات</CardTitle>
-                        <CardDescription>مبالغ پرداخت نشده</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                         <p className="text-3xl font-bold text-orange-500">
-                            {totalReceivables.toLocaleString('fa-IR')} {CURRENCY_SYMBOLS.TOMAN}
-                        </p>
-                    </CardContent>
-                </Card>
+                <StatCard label="مجموع فروش" value={formatToman(totalSales)} icon={Bot} />
+                <StatCard label="سود ناخالص" value={formatToman(totalGrossProfit)} />
+                <StatCard label="مجموع مخارج" value={formatToman(totalExpenses)} />
+                <StatCard label="سود خالص" value={formatToman(totalNetProfit)} trend={totalNetProfit >= 0 ? 'مثبت' : 'منفی'} trendUp={totalNetProfit >= 0} />
+                <StatCard label="مطالبات" value={formatToman(totalReceivables)} />
             </div>
              <div className="grid gap-8">
                 {renderChart(chartData, 'نمودار جامع فروش، سود و مخارج')}
             </div>
-             <Card>
+             <Card variant="glass" className="overflow-hidden">
                 <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
                 <div className="flex items-center gap-4">
-                    <div className="p-3 rounded-full bg-primary/10 text-primary">
+                    <div className="rounded-2xl border border-primary/20 bg-primary/10 p-3 text-primary">
                         <Bot className="h-6 w-6" />
                     </div>
                     <div>
@@ -355,17 +329,17 @@ export default function ReportsPage() {
                         </CardDescription>
                     </div>
                 </div>
-                <Button onClick={handleGenerateReport} disabled={isAiLoading}>
+                <Button onClick={handleGenerateReport} disabled={isAiLoading} variant="gradient">
                     {isAiLoading ? (
                         'در حال تولید...'
                     ) : (
                         <>
-                        <Sparkles className="mr-2 h-4 w-4" /> تولید گزارش
+                        <Sparkles className="me-2 h-4 w-4" /> تولید گزارش
                         </>
                     )}
                     </Button>
                 </CardHeader>
-                <CardContent className="min-h-[200px] prose prose-sm max-w-none dark:prose-invert">
+                <CardContent className="min-h-[200px]">
                 {isAiLoading && (
                     <div className="space-y-4">
                     <Skeleton className="h-4 w-full" />
@@ -374,36 +348,25 @@ export default function ReportsPage() {
                     </div>
                 )}
                 {!isAiLoading && recommendations && (
-                    <div dangerouslySetInnerHTML={{ __html: recommendations.replace(/\n/g, '<br />') }} />
+                    <div className="rounded-xl border border-white/10 bg-background/50 p-4 font-code text-sm leading-relaxed text-muted-foreground" dir="ltr">
+                      <pre className="whitespace-pre-wrap">{recommendations}</pre>
+                    </div>
                 )}
                 {!isAiLoading && !recommendations && (
-                    <div className="flex flex-1 items-center justify-center rounded-lg h-[200px]">
-                        <div className="flex flex-col items-center gap-1 text-center">
-                            <h3 className="text-2xl font-bold tracking-tight">
-                            آماده برای تحلیل
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                            برای شروع، روی دکمه "تولید گزارش" کلیک کنید.
-                            </p>
-                        </div>
-                    </div>
+                    <EmptyState
+                      title="آماده برای تحلیل"
+                      description='برای شروع، روی دکمه "تولید گزارش" کلیک کنید.'
+                      className="border-none bg-transparent py-8"
+                    />
                 )}
                 </CardContent>
             </Card>
         </>
         ) : (
-            <Card>
-                <CardContent className="flex flex-1 items-center justify-center p-10">
-                    <div className="flex flex-col items-center gap-2 text-center">
-                        <h3 className="text-2xl font-bold tracking-tight">
-                        داده‌ای برای نمایش وجود ندارد
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                        هیچ فروش یا هزینه‌ای در بازه زمانی انتخاب شده ثبت نشده است.
-                        </p>
-                    </div>
-                </CardContent>
-            </Card>
+            <EmptyState
+              title="داده‌ای برای نمایش وجود ندارد"
+              description="هیچ فروش یا هزینه‌ای در بازه زمانی انتخاب شده ثبت نشده است."
+            />
         )}
     </div>
   );

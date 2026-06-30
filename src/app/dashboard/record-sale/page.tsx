@@ -30,12 +30,6 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
-import {
-    Command,
-    CommandInput,
-    CommandItem,
-    CommandList,
-  } from '@/components/ui/command';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -59,7 +53,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { CURRENCY_SYMBOLS } from '@/lib/utils';
+import { CURRENCY_SYMBOLS, getEffectiveProductPrice } from '@/lib/utils';
+import { getProductMedia } from '@/lib/product-media';
+import { ProductMediaThumb, ProductMediaViewer } from '@/components/product-media-viewer';
+import type { ExchangeRate } from '@/lib/types';
+import { PersianDatePicker } from '@/components/persian-date';
+import { ProductMediaManager } from '@/components/product-media-manager';
+import type { ProductMedia } from '@/lib/types';
+import { PageHeader } from '@/components/layout/page-header';
 
 const paymentMethodLabels: Record<PaymentMethod, string> = {
     CASH: 'نقد',
@@ -72,6 +73,12 @@ const attachmentSchema = z.object({
   description: z.string().optional(),
   receiptNumber: z.string().optional(),
   receiptImage: z.string().optional(), // Base64
+  media: z.array(z.object({
+    id: z.string(),
+    url: z.string(),
+    type: z.enum(['image', 'video']),
+    name: z.string().optional(),
+  })).default([]),
 });
 
 const paymentFormSchema = z.object({
@@ -81,34 +88,33 @@ const paymentFormSchema = z.object({
 });
 
 function AttachmentForm({ onAddAttachment }: { onAddAttachment: (data: z.infer<typeof attachmentSchema>) => void }) {
+    const { db } = useAppContext();
     const form = useForm<z.infer<typeof attachmentSchema>>({
         resolver: zodResolver(attachmentSchema),
-        defaultValues: { description: '', receiptNumber: '', receiptImage: '', date: new Date().toISOString().slice(0, 16) },
+        defaultValues: { description: '', receiptNumber: '', receiptImage: '', media: [], date: new Date().toISOString().slice(0, 16) },
     });
-    
-    const [preview, setPreview] = useState('');
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setPreview(reader.result as string);
-                form.setValue('receiptImage', reader.result as string);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
+    const media = form.watch('media') || [];
     
     const handleSubmit = (data: z.infer<typeof attachmentSchema>) => {
-        onAddAttachment(data);
-        form.reset();
-        setPreview('');
+        const currentMedia = form.getValues('media') || [];
+        const firstImage = currentMedia.find((item) => item.type === 'image');
+        onAddAttachment({
+            ...data,
+            media: currentMedia,
+            receiptImage: data.receiptImage || firstImage?.url,
+        });
+        form.reset({ description: '', receiptNumber: '', receiptImage: '', media: [], date: new Date().toISOString() });
     }
 
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 p-4 border rounded-md">
+            <form
+                onSubmit={(event) => {
+                    event.stopPropagation();
+                    form.handleSubmit(handleSubmit)(event);
+                }}
+                className="space-y-4 p-4 border rounded-md"
+            >
                  <FormField
                     control={form.control}
                     name="date"
@@ -116,7 +122,7 @@ function AttachmentForm({ onAddAttachment }: { onAddAttachment: (data: z.infer<t
                         <FormItem>
                         <FormLabel>تاریخ و ساعت سند</FormLabel>
                         <FormControl>
-                            <Input type="datetime-local" {...field} />
+                            <PersianDatePicker includeTime value={field.value} onChange={field.onChange} />
                         </FormControl>
                         </FormItem>
                     )}
@@ -147,25 +153,21 @@ function AttachmentForm({ onAddAttachment }: { onAddAttachment: (data: z.infer<t
                 />
                 <FormField
                     control={form.control}
-                    name="receiptImage"
+                    name="media"
                     render={() => (
                         <FormItem>
-                        <FormLabel>تصویر رسید (اختیاری)</FormLabel>
+                        <FormLabel>رسانه سند</FormLabel>
                         <FormControl>
-                            <Input type="file" accept="image/*" onChange={handleFileChange} className="pt-2"/>
+                            <ProductMediaManager
+                              value={media as ProductMedia[]}
+                              onChange={(value) => form.setValue('media', value, { shouldDirty: true, shouldValidate: true })}
+                              uploadFile={(file) => db!.uploadFile(file)}
+                            />
                         </FormControl>
                         </FormItem>
                     )}
                     />
-                {preview && (
-                    <div className="relative w-32 h-32">
-                        <img src={preview} alt="پیش‌نمایش رسید" className="rounded-md object-cover w-full h-full" />
-                        <Button type="button" size="icon" variant="destructive" className="absolute -top-2 -right-2 h-6 w-6" onClick={() => { form.setValue('receiptImage', ''); setPreview(''); }}>
-                            <Trash2 className="h-4 w-4"/>
-                        </Button>
-                    </div>
-                )}
-                 <Button type="submit">افزودن سند</Button>
+                 <Button type="submit" disabled={!db}>افزودن سند</Button>
             </form>
         </Form>
     );
@@ -202,7 +204,7 @@ function PaymentForm({ onAddPayment }: { onAddPayment: (payment: Omit<Payment, '
                      <FormField control={form.control} name="date" render={({field}) => (
                         <FormItem>
                             <FormLabel>تاریخ و ساعت پرداخت</FormLabel>
-                            <FormControl><Input type="datetime-local" {...field} /></FormControl>
+                            <FormControl><PersianDatePicker includeTime value={field.value} onChange={field.onChange} /></FormControl>
                              <FormMessage/>
                         </FormItem>
                     )}/>
@@ -257,7 +259,9 @@ export default function RecordSalePage() {
   const { db } = useAppContext();
 
   const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [exchangeRates, setExchangeRates] = useState<ExchangeRate[]>([]);
   const [productSearchTerm, setProductSearchTerm] = useState('');
+  const [previewProduct, setPreviewProduct] = useState<Product | null>(null);
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -270,14 +274,17 @@ export default function RecordSalePage() {
   
   useEffect(() => {
     if (!db) return;
+    const currentDb = db;
     barcodeRef.current?.focus();
     async function fetchData() {
-        const [customersData, productsData] = await Promise.all([
-            db.getAllCustomers(),
-            db.getAllProducts()
+        const [customersData, productsData, rates] = await Promise.all([
+            currentDb.getAllCustomers(),
+            currentDb.getAllProducts(),
+            currentDb.getExchangeRates(),
         ]);
         setCustomers(customersData);
         setAllProducts(productsData);
+        setExchangeRates(rates);
     }
     fetchData();
   }, [db]);
@@ -295,6 +302,8 @@ export default function RecordSalePage() {
         });
         return;
     }
+
+    const salePrice = getEffectiveProductPrice(product, exchangeRates);
 
     setCart((prevCart) => {
         const existingItem = prevCart.find((item) => item.productId === product.id);
@@ -319,12 +328,12 @@ export default function RecordSalePage() {
             productId: product.id,
             productName: product.name,
             quantity: 1,
-            price: product.price,
+            price: salePrice,
             },
         ];
         }
     });
-  }, [toast]);
+  }, [toast, exchangeRates]);
 
   const handleBarcodeAdd = async (scannedBarcode: string) => {
     if (!scannedBarcode || !db) return;
@@ -386,10 +395,11 @@ export default function RecordSalePage() {
     }
 
     try {
-        let newCustomerNameToAdd: string | undefined = undefined;
-        if (customerSearch && !selectedCustomer) {
-            newCustomerNameToAdd = customerSearch;
-        }
+        const normalizedCustomerSearch = customerSearch.trim();
+        const selectedExistingCustomer = selectedCustomer?.id ? selectedCustomer : undefined;
+        const exactCustomer = customers.find((customer) => customer.name.trim().toLowerCase() === normalizedCustomerSearch.toLowerCase());
+        const finalCustomer = selectedExistingCustomer || exactCustomer;
+        const newCustomerNameToAdd = !finalCustomer && normalizedCustomerSearch ? normalizedCustomerSearch : undefined;
         
         const paymentIds = await Promise.all(
             payments.map(p => {
@@ -399,11 +409,11 @@ export default function RecordSalePage() {
         );
 
         await db.addSale({
-            items: cart,
+            items: cart.map((item) => ({ ...item, totalCost: 0 })),
             total,
             date: new Date().toISOString(),
-            customerId: selectedCustomer?.id,
-            customerName: selectedCustomer?.name,
+            customerId: finalCustomer?.id,
+            customerName: finalCustomer?.name,
             paymentIds: paymentIds,
         }, newCustomerNameToAdd);
 
@@ -428,11 +438,18 @@ export default function RecordSalePage() {
   };
   
   const filteredCustomers = useMemo(() => {
-    if (!customerSearch) return customers;
+    const query = customerSearch.trim().toLowerCase();
+    if (!query) return customers;
     return customers.filter(
-        c => c.name.toLowerCase().includes(customerSearch.toLowerCase()) || 
-             c.phone?.includes(customerSearch)
+        c => c.name.toLowerCase().includes(query) || 
+             c.phone?.includes(customerSearch.trim())
     );
+  }, [customerSearch, customers]);
+
+  const hasExactCustomerMatch = useMemo(() => {
+    const query = customerSearch.trim().toLowerCase();
+    if (!query) return false;
+    return customers.some((customer) => customer.name.trim().toLowerCase() === query);
   }, [customerSearch, customers]);
 
   const filteredProducts = useMemo(() => {
@@ -444,10 +461,15 @@ export default function RecordSalePage() {
 
 
   return (
-    <div className="grid md:grid-cols-5 gap-8 items-start">
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="ثبت فروش"
+        description="محصولات را به سبد اضافه کنید و فاکتور را تکمیل کنید"
+      />
+    <div className="grid items-start gap-8 md:grid-cols-5">
         {/* Cart and Summary - Left Column */}
       <div className="md:col-span-3">
-        <Card>
+        <Card variant="glass">
           <CardHeader>
             <CardTitle>سبد خرید</CardTitle>
             <CardDescription>محصولات انتخاب شده برای این فروش</CardDescription>
@@ -496,7 +518,7 @@ export default function RecordSalePage() {
               </Table>
             </div>
             <Separator className="my-6"/>
-            <Card className="sticky top-8">
+            <Card variant="glass" className="sticky top-8">
                 <CardHeader>
                     <CardTitle>خلاصه و پرداخت</CardTitle>
                 </CardHeader>
@@ -544,52 +566,66 @@ export default function RecordSalePage() {
                         <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
                             <PopoverTrigger asChild>
                                 <Button variant="outline" role="combobox" aria-expanded={isCustomerPopoverOpen} className="w-full justify-between">
-                                    {selectedCustomer ? selectedCustomer.name : 'انتخاب مشتری...'}
+                                    {selectedCustomer ? selectedCustomer.name : (customerSearch || 'انتخاب مشتری...')}
                                     <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-[300px] p-0">
-                                <Command>
-                                    <CommandInput 
+                            <PopoverContent className="w-[300px] p-2">
+                                <div className="space-y-2">
+                                    <div className="relative">
+                                        <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                        <Input
                                         placeholder="جستجوی نام یا شماره مشتری..."
                                         value={customerSearch}
-                                        onValueChange={setCustomerSearch}
-                                    />
-                                    <CommandList>
-                                        {filteredCustomers.length === 0 && customerSearch && (
-                                            <CommandItem
-                                                onSelect={() => {
-                                                    setSelectedCustomer({ id: '', name: customerSearch });
+                                        onChange={(event) => {
+                                            setCustomerSearch(event.target.value);
+                                            setSelectedCustomer(null);
+                                        }}
+                                        className="pr-9"
+                                        autoFocus
+                                        />
+                                    </div>
+                                    <div className="max-h-[260px] space-y-1 overflow-y-auto">
+                                        {customerSearch.trim() && !hasExactCustomerMatch && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedCustomer(null);
+                                                    setCustomerSearch(customerSearch.trim());
                                                     setIsCustomerPopoverOpen(false);
                                                 }}
-                                                className="flex items-center gap-2"
+                                                className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-right text-sm hover:bg-accent hover:text-accent-foreground"
                                             >
                                                 <UserPlus className="h-4 w-4" />
-                                                <span>افزودن مشتری جدید: "{customerSearch}"</span>
-                                            </CommandItem>
+                                                <span>افزودن مشتری جدید: "{customerSearch.trim()}"</span>
+                                            </button>
                                         )}
                                         {filteredCustomers.map((customer) => (
-                                        <CommandItem
+                                        <button
+                                            type="button"
                                             key={customer.id}
-                                            value={customer.name}
-                                            onSelect={() => {
+                                            onClick={() => {
                                                 setSelectedCustomer(customer);
                                                 setCustomerSearch(customer.name);
                                                 setIsCustomerPopoverOpen(false);
                                             }}
+                                            className="block w-full rounded-sm px-2 py-2 text-right text-sm hover:bg-accent hover:text-accent-foreground"
                                         >
                                             {customer.name} {customer.phone && `(${customer.phone})`}
-                                        </CommandItem>
+                                        </button>
                                         ))}
-                                    </CommandList>
-                                </Command>
+                                        {filteredCustomers.length === 0 && !customerSearch.trim() && (
+                                            <p className="px-2 py-4 text-center text-sm text-muted-foreground">مشتری‌ای ثبت نشده است.</p>
+                                        )}
+                                    </div>
+                                </div>
                             </PopoverContent>
                         </Popover>
                     </div>
                 </CardContent>
                 <CardFooter>
-                    <Button className="w-full" size="lg" onClick={completeSale} disabled={!db}>
-                    <ShoppingCart className="mr-2 h-5 w-5" /> تکمیل فروش
+                    <Button className="w-full" size="lg" variant="gradient" onClick={completeSale} disabled={!db}>
+                    <ShoppingCart className="me-2 h-5 w-5" /> تکمیل فروش
                     </Button>
                 </CardFooter>
             </Card>
@@ -599,7 +635,7 @@ export default function RecordSalePage() {
 
        {/* Product List - Right Column */}
       <div className="md:col-span-2">
-        <Card>
+        <Card variant="glass">
             <CardHeader>
                 <CardTitle>لیست محصولات</CardTitle>
                 <CardDescription>محصولات را برای افزودن به سبد خرید جستجو و انتخاب کنید.</CardDescription>
@@ -628,23 +664,50 @@ export default function RecordSalePage() {
                 <ScrollArea className="h-[60vh] border rounded-md">
                    <div className="p-2">
                      {filteredProducts.length > 0 ? (
-                        filteredProducts.map(product => (
-                            <div key={product.id} onClick={() => handleAddProductToCart(product)} className="flex justify-between items-center p-2 rounded-md hover:bg-muted cursor-pointer">
-                                <div>
-                                    <p className="font-semibold">{product.name}</p>
+                        filteredProducts.map(product => {
+                            const price = getEffectiveProductPrice(product, exchangeRates);
+                            const media = getProductMedia(product);
+                            return (
+                            <div key={product.id} onClick={() => handleAddProductToCart(product)} className="flex justify-between items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer">
+                                {media.length > 0 ? (
+                                  <ProductMediaThumb
+                                    media={media}
+                                    productName={product.name}
+                                    className="h-10 w-10"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setPreviewProduct(product);
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted shrink-0">
+                                    <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                                  </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-semibold truncate">{product.name}</p>
                                     <p className="text-sm text-muted-foreground">موجودی: {product.quantity}</p>
                                 </div>
-                                <span className="font-mono">{product.price.toLocaleString('fa-IR')} {CURRENCY_SYMBOLS.TOMAN}</span>
+                                <span className="font-mono shrink-0">{price.toLocaleString('fa-IR')} {CURRENCY_SYMBOLS.TOMAN}</span>
                             </div>
-                        ))
+                        )})
                      ) : (
                          <div className="text-center text-muted-foreground p-4">محصولی یافت نشد.</div>
                      )}
                    </div>
                 </ScrollArea>
+                {previewProduct && (
+                  <ProductMediaViewer
+                    media={getProductMedia(previewProduct)}
+                    open={!!previewProduct}
+                    onOpenChange={(open) => !open && setPreviewProduct(null)}
+                    productName={previewProduct.name}
+                  />
+                )}
             </CardContent>
         </Card>
       </div>
+    </div>
     </div>
   );
 }

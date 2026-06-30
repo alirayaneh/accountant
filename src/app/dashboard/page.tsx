@@ -3,578 +3,252 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { PlusCircle, Download, Trash2, Pencil, BarChart2, ImageIcon } from 'lucide-react';
-import type { Product, ExchangeRate, CostTitle } from '@/lib/types';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogClose,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { calculateTotalCostInToman, CURRENCY_SYMBOLS, calculateSellingPrice } from '@/lib/utils';
-import { Separator } from '@/components/ui/separator';
-import { useForm, useFieldArray } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  TrendingUp,
+  Receipt,
+  FileText,
+  ShoppingCart,
+  PlusCircle,
+  AlertTriangle,
+  ArrowLeft,
+} from 'lucide-react';
+import type { Product, Sale, Expense } from '@/lib/types';
 import { useAppContext } from '@/components/app-provider';
+import { useToast } from '@/hooks/use-toast';
+import { PageHeader } from '@/components/layout/page-header';
+import { StatCard } from '@/components/ui/stat-card';
+import { DataSection } from '@/components/ui/data-section';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { formatToman } from '@/lib/format';
+import { startOfMonth, subDays } from 'date-fns';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { formatPersianDate } from '@/lib/date-utils';
 
-const productSchema = z.object({
-  id: z.string().min(1, 'بارکد الزامی است'),
-  name: z.string().min(1, 'نام محصول الزامی است'),
-  quantity: z.coerce.number().min(0, 'تعداد نمی‌تواند منفی باشد'),
-  lowStockThreshold: z.coerce.number().min(0, 'آستانه نمی‌تواند منفی باشد'),
-  profitMargin: z.coerce.number().min(0, 'حاشیه سود نمی‌تواند منفی باشد'),
-   imageUrl: z.string().optional(),
-  costs: z.array(
-    z.object({
-      id: z.string(),
-      title: z.string(),
-      amount: z.coerce.number().min(0, 'مبلغ نمی‌تواند منفی باشد'),
-      currency: z.enum(['TOMAN', 'USD', 'AED', 'CNY']),
-    })
-  ),
-});
-
-
-function EditProductForm({
-  product,
-  onSuccess,
-  exchangeRates,
-  costTitles
-}: {
-  product: Product;
-  onSuccess: () => void;
-  exchangeRates: ExchangeRate[];
-  costTitles: CostTitle[];
-}) {
-  const { toast } = useToast();
-  const { db } = useAppContext();
-  const [calculatedPrice, setCalculatedPrice] = useState(product.price);
-  
-  const form = useForm<z.infer<typeof productSchema>>({
-    resolver: zodResolver(productSchema),
-    defaultValues: {
-      ...product,
-    },
-  });
-
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: "costs",
-  });
-
-  const watchedValues = form.watch();
-
-  useEffect(() => {
-    const productData = {
-        ...watchedValues,
-        price: 0
-    } as Product
-    const newPrice = calculateSellingPrice(productData, exchangeRates);
-    setCalculatedPrice(newPrice);
-  }, [watchedValues, exchangeRates]);
-
-
-  const handleSubmit = async (data: z.infer<typeof productSchema>) => {
-    if(!db) return;
-    try {
-      const finalPrice = calculateSellingPrice({...data, price: 0} as Product, exchangeRates);
-      await db.updateProduct(product.id, { 
-        ...data,
-        price: finalPrice
-      });
-      toast({
-        title: 'محصول ویرایش شد',
-        description: `'${data.name}' با موفقیت به‌روزرسانی شد.`,
-      });
-      onSuccess();
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'خطا',
-        description: 'ویرایش محصول ناموفق بود.',
-      });
-    }
-  };
-
-  return (
-    <Form {...form}>
-    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 max-h-[80vh] overflow-y-auto p-4">
-      <FormField
-        control={form.control}
-        name="name"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>نام محصول</FormLabel>
-            <FormControl>
-              <Input {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      
-      <div className="grid grid-cols-2 gap-4">
-        <FormField
-          control={form.control}
-          name="quantity"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>تعداد</FormLabel>
-              <FormControl>
-                <Input type="number" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="lowStockThreshold"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>آستانه هشدار موجودی</FormLabel>
-              <FormControl>
-                <Input type="number" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </div>
-
-      <Separator />
-
-        <div className="space-y-4">
-            <h3 className="text-lg font-medium">هزینه‌های محصول</h3>
-            {fields.map((field, index) => (
-                <div key={field.id} className="flex items-end gap-2 p-3 border rounded-md">
-                    <FormField
-                    control={form.control}
-                    name={`costs.${index}.title`}
-                    render={({ field: selectField }) => (
-                        <FormItem className="w-1/3">
-                            <FormLabel>عنوان هزینه</FormLabel>
-                            <Select onValueChange={selectField.onChange} defaultValue={selectField.value}>
-                                <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="یک عنوان انتخاب کنید" />
-                                </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                {costTitles.map(ct => (
-                                    <SelectItem key={ct.id} value={ct.title}>{ct.title}</SelectItem>
-                                ))}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                    />
-                    <FormField
-                    control={form.control}
-                    name={`costs.${index}.amount`}
-                    render={({ field }) => (
-                        <FormItem className="w-1/3">
-                        <FormLabel>مبلغ</FormLabel>
-                        <FormControl><Input type="number" placeholder="100" {...field} /></FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name={`costs.${index}.currency`}
-                      render={({ field }) => (
-                        <FormItem className="w-1/3">
-                          <FormLabel>ارز</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger><SelectValue placeholder="ارز را انتخاب کنید" /></SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {Object.entries(CURRENCY_SYMBOLS).map(([code, symbol]) => (
-                                <SelectItem key={code} value={code}>{code} ({symbol})</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)}>
-                    <Trash2 className="h-4 w-4" />
-                    </Button>
-                </div>
-            ))}
-            <Button
-                type="button"
-                variant="outline"
-                onClick={() => append({ id: Date.now().toString(), title: costTitles[0]?.title || '', amount: 0, currency: 'TOMAN' })}
-            >
-                <PlusCircle className="mr-2 h-4 w-4" /> افزودن هزینه
-            </Button>
-        </div>
-
-      <Separator />
-
-      <FormField
-        control={form.control}
-        name="profitMargin"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>حاشیه سود (%)</FormLabel>
-            <FormControl>
-              <Input type="number" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-       <div className="p-4 border rounded-md bg-muted">
-            <p className="text-sm text-muted-foreground">قیمت فروش محاسبه‌شده</p>
-            <p className="text-2xl font-bold">
-                {calculatedPrice.toLocaleString('fa-IR')} {CURRENCY_SYMBOLS.TOMAN}
-            </p>
-        </div>
-      <DialogFooter>
-        <DialogClose asChild>
-          <Button type="button" variant="outline">لغو</Button>
-        </DialogClose>
-        <Button type="submit">ذخیره تغییرات</Button>
-      </DialogFooter>
-    </form>
-    </Form>
-  );
-}
-
-function ProductCard({
-  product,
-  onDelete,
-  onUpdate,
-  exchangeRates,
-  costTitles,
-}: {
-  product: Product;
-  onDelete: (id: string) => void;
-  onUpdate: () => void;
-  exchangeRates: ExchangeRate[];
-  costTitles: CostTitle[];
-}) {
-  const isLowStock = product.quantity <= product.lowStockThreshold;
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-
-  const totalCost = useMemo(() => 
-    calculateTotalCostInToman(product.costs, exchangeRates),
-    [product.costs, exchangeRates]
-  );
-
-  return (
-    <Card className="flex flex-col">
-       {product.imageUrl ? (
-        <div className="relative w-full h-40">
-           <Image src={product.imageUrl} alt={product.name} layout="fill" className="object-cover rounded-t-lg" />
-        </div>
-      ) : (
-         <div className="flex items-center justify-center h-40 bg-muted rounded-t-lg">
-          <ImageIcon className="w-12 h-12 text-muted-foreground" />
-        </div>
-      )}
-      <CardHeader>
-        <CardTitle>{product.name}</CardTitle>
-        <CardDescription>بارکد: {product.id}</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4 flex-grow">
-        <div>
-            <div className="font-semibold text-2xl">{product.price.toLocaleString('fa-IR')} {CURRENCY_SYMBOLS.TOMAN}</div>
-            <p className="text-xs text-muted-foreground">قیمت فروش</p>
-        </div>
-        <Separator/>
-        <div className="grid gap-2">
-            <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">هزینه تمام‌شده</span>
-                <span className="font-medium">{totalCost.toLocaleString('fa-IR')} {CURRENCY_SYMBOLS.TOMAN}</span>
-            </div>
-            <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">حاشیه سود</span>
-                <span className="font-medium">{product.profitMargin}%</span>
-            </div>
-             <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">موجودی</span>
-                 <div className="flex items-center gap-2">
-                    <span className="font-medium">{product.quantity}</span>
-                    {isLowStock ? (
-                        <Badge variant="destructive">موجودی کم</Badge>
-                    ) : (
-                        <Badge variant="secondary">موجود</Badge>
-                    )}
-                </div>
-            </div>
-        </div>
-      </CardContent>
-      <CardFooter className="flex justify-end gap-2">
-         <Button variant="ghost" size="icon" asChild>
-            <Link href={`/dashboard/products/${product.id}`}>
-              <BarChart2 className="h-4 w-4" />
-            </Link>
-          </Button>
-         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="icon">
-              <Pencil className="h-4 w-4" />
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>ویرایش محصول</DialogTitle>
-            </DialogHeader>
-             <EditProductForm 
-                product={product} 
-                exchangeRates={exchangeRates} 
-                costTitles={costTitles}
-                onSuccess={() => {
-                    onUpdate();
-                    setIsEditDialogOpen(false);
-                }} 
-            />
-          </DialogContent>
-        </Dialog>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="destructive" size="icon">
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>آیا مطمئن هستید؟</AlertDialogTitle>
-              <AlertDialogDescription>
-                این عملیات غیرقابل بازگشت است. محصول '{product.name}' برای همیشه حذف خواهد شد.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>لغو</AlertDialogCancel>
-              <AlertDialogAction onClick={() => onDelete(product.id)}>
-                حذف
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </CardFooter>
-    </Card>
-  );
-}
-
-export default function InventoryPage() {
+export default function FinancialDashboardPage() {
   const { db, isLoading, setGlobalLoading } = useAppContext();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [exchangeRates, setExchangeRates] = useState<ExchangeRate[]>([]);
-  const [costTitles, setCostTitles] = useState<CostTitle[]>([]);
   const { toast } = useToast();
-  
-  const fetchProducts = async () => {
-    if (!db) return;
-    setGlobalLoading(true);
-    try {
-      const [allProducts, rates, titles] = await Promise.all([
-        db.getAllProducts(),
-        db.getExchangeRates(),
-        db.getCostTitles(),
-      ]);
-      setProducts(allProducts.sort((a, b) => a.name.localeCompare(b.name)));
-      setExchangeRates(rates);
-      setCostTitles(titles);
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'خطا در بارگذاری',
-        description: 'بارگذاری محصولات از پایگاه داده ناموفق بود.',
-      });
-    } finally {
-      setGlobalLoading(false);
-    }
-  };
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
 
   useEffect(() => {
-    if (db) {
-        const checkRecurringExpenses = async () => {
-            try {
-                const addedCount = await db.applyRecurringExpenses();
-                if (addedCount > 0) {
-                    toast({
-                        title: 'هزینه‌های دوره‌ای ثبت شد',
-                        description: `${addedCount} هزینه دوره‌ای به طور خودکار به لیست مخارج اضافه شد.`,
-                    });
-                }
-            } catch(error) {
-                 console.error("Failed to apply recurring expenses:", error);
-                 toast({
-                    variant: 'destructive',
-                    title: 'خطا در ثبت خودکار هزینه‌ها',
-                    description: 'سیستم نتوانست هزینه‌های دوره‌ای را بررسی و ثبت کند.',
-                });
-            }
-        };
-        
-        checkRecurringExpenses().then(() => fetchProducts());
+    if (!db) return;
+    const currentDb = db;
+    async function fetchData() {
+      setGlobalLoading(true);
+      try {
+        await currentDb.applyRecurringExpenses();
+        const [allSales, allExpenses, allProducts] = await Promise.all([
+          currentDb.getAllSales(),
+          currentDb.getAllExpenses(),
+          currentDb.getAllProducts(),
+        ]);
+        const paymentIds = allSales.flatMap((s) => s.paymentIds || []);
+        await currentDb.getPaymentsByIds(paymentIds);
+        setSales(allSales);
+        setExpenses(allExpenses);
+        setProducts(allProducts);
+      } catch {
+        toast({
+          variant: 'destructive',
+          title: 'خطا در بارگذاری',
+          description: 'بارگذاری داده‌های داشبورد با مشکل مواجه شد.',
+        });
+      } finally {
+        setGlobalLoading(false);
+      }
     }
+    fetchData();
   }, [db]);
 
-  const handleDelete = async (id: string) => {
-    if (!db) return;
-    try {
-      await db.deleteProduct(id);
-      toast({
-        title: 'محصول حذف شد',
-        description: 'محصول با موفقیت حذف شد.',
-      });
-      fetchProducts();
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'خطا',
-        description: 'حذف محصول ناموفق بود.',
-      });
-    }
-  };
+  const monthStart = startOfMonth(new Date());
 
-  const exportToCSV = () => {
-    const headers = ['ID', 'Name', 'Selling Price (TOMAN)', 'Quantity', 'Low Stock Threshold', 'Profit Margin (%)', 'Total Cost (TOMAN)'];
-    const rows = products.map(p => {
-        const totalCost = calculateTotalCostInToman(p.costs, exchangeRates);
-        return [p.id, p.name, p.price, p.quantity, p.lowStockThreshold, p.profitMargin, totalCost];
+  const monthSales = useMemo(
+    () => sales.filter((s) => new Date(s.date) >= monthStart),
+    [sales, monthStart]
+  );
+  const monthExpenses = useMemo(
+    () => expenses.filter((e) => new Date(e.date) >= monthStart),
+    [expenses, monthStart]
+  );
+
+  const { totalSales, totalExpenses, netProfit, invoiceCount } = useMemo(() => {
+    const revenue = monthSales.reduce((sum, s) => sum + s.total, 0);
+    const grossProfit = monthSales.reduce((total, sale) => {
+      const cost = sale.items.reduce((acc, item) => acc + (item.totalCost || 0), 0);
+      return total + (sale.total - cost);
+    }, 0);
+    const expSum = monthExpenses.reduce((sum, e) => sum + e.amount, 0);
+    return {
+      totalSales: revenue,
+      totalExpenses: expSum,
+      netProfit: grossProfit - expSum,
+      invoiceCount: monthSales.length,
+    };
+  }, [monthSales, monthExpenses]);
+
+  const lowStockProducts = useMemo(
+    () => products.filter((p) => p.quantity <= p.lowStockThreshold),
+    [products]
+  );
+
+  const chartData = useMemo(() => {
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const d = subDays(new Date(), 6 - i);
+      const key = d.toISOString().slice(0, 10);
+      const daySales = sales.filter((s) => s.date.slice(0, 10) === key);
+      const dayExpenses = expenses.filter((e) => e.date.slice(0, 10) === key);
+      return {
+        name: formatPersianDate(d, 'date'),
+        فروش: daySales.reduce((sum, s) => sum + s.total, 0),
+        مخارج: dayExpenses.reduce((sum, e) => sum + e.amount, 0),
+      };
     });
+    return days;
+  }, [sales, expenses]);
 
-    let csvContent = "data:text/csv;charset=utf-8," 
-        + headers.join(",") + "\n" 
-        + rows.map(e => e.join(",")).join("\n");
-    
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "inventory.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const filteredProducts = useMemo(() => {
-    return products.filter(
-      (product) =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.id.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [products, searchTerm]);
+  const recentSales = useMemo(
+    () => [...sales].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8),
+    [sales]
+  );
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-96 w-full" />)}
+      <div className="space-y-6">
+        <Skeleton className="h-10 w-64" />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-32 rounded-2xl" />
+          ))}
+        </div>
+        <Skeleton className="h-64 rounded-2xl" />
       </div>
-    )
+    );
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">موجودی کالا</h1>
-        <div className="flex gap-2">
-           <Button onClick={exportToCSV} variant="outline">
-            <Download className="mr-2 h-4 w-4" />
-            خروجی CSV
-          </Button>
-          <Button asChild>
-            <Link href={`/dashboard/add-product`}>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              افزودن محصول
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        title="داشبورد مالی"
+        description="نمای کلی عملکرد ماه جاری"
+        actions={
+          <Button asChild variant="gradient">
+            <Link href="/dashboard/record-sale">
+              <ShoppingCart className="me-2 h-4 w-4" />
+              ثبت فروش
             </Link>
           </Button>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="mb-4">
-        <Input
-          placeholder="جستجوی محصول با نام یا بارکد..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
-        />
-      </div>
-
-      {filteredProducts.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              onDelete={handleDelete}
-              onUpdate={fetchProducts}
-              exchangeRates={exchangeRates}
-              costTitles={costTitles}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm">
-          <div className="flex flex-col items-center gap-1 text-center">
-            <h3 className="text-2xl font-bold tracking-tight">
-              محصولی یافت نشد
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              برای شروع، اولین محصول خود را اضافه کنید.
-            </p>
-            <Button className="mt-4" asChild>
-              <Link href={`/dashboard/add-product`}>افزودن محصول</Link>
-            </Button>
-          </div>
+      {lowStockProducts.length > 0 && (
+        <div className="flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-amber-400" />
+          <p className="text-sm">
+            <strong>{lowStockProducts.length}</strong> محصول با موجودی کم —
+            <Link href="/dashboard/inventory" className="ms-1 text-primary hover:underline">
+              مشاهده موجودی
+            </Link>
+          </p>
         </div>
       )}
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="فروش ماه جاری" value={formatToman(totalSales)} icon={TrendingUp} />
+        <StatCard label="مخارج ماه جاری" value={formatToman(totalExpenses)} icon={Receipt} />
+        <StatCard
+          label="سود خالص"
+          value={formatToman(netProfit)}
+          icon={TrendingUp}
+          trend={netProfit >= 0 ? 'مثبت' : 'منفی'}
+          trendUp={netProfit >= 0}
+        />
+        <StatCard label="تعداد فاکتور" value={invoiceCount.toLocaleString('fa-IR')} icon={FileText} />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <DataSection title="فروش ۷ روز اخیر" className="lg:col-span-2">
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <YAxis tickFormatter={(v) => v.toLocaleString('fa-IR')} tick={{ fontSize: 11 }} />
+              <Tooltip
+                contentStyle={{
+                  background: 'hsl(var(--card))',
+                  borderColor: 'hsl(var(--border))',
+                  borderRadius: '12px',
+                  direction: 'rtl',
+                }}
+                formatter={(value: number) => [formatToman(value), '']}
+              />
+              <Bar dataKey="فروش" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="مخارج" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </DataSection>
+
+        <div className="flex flex-col gap-3">
+          <h3 className="font-semibold">دسترسی سریع</h3>
+          {[
+            { href: '/dashboard/record-sale', label: 'ثبت فروش', icon: ShoppingCart },
+            { href: '/dashboard/add-product', label: 'افزودن محصول', icon: PlusCircle },
+            { href: '/dashboard/expenses', label: 'ثبت مخارج', icon: Receipt },
+            { href: '/dashboard/reports', label: 'گزارش‌ها', icon: FileText },
+          ].map(({ href, label, icon: Icon }) => (
+            <Button key={href} asChild variant="ghost-glass" className="justify-between">
+              <Link href={href}>
+                <span className="flex items-center gap-2">
+                  <Icon className="h-4 w-4 text-primary" />
+                  {label}
+                </span>
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <DataSection title="آخرین فروش‌ها" description="۸ فاکتور اخیر">
+        {recentSales.length > 0 ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>تاریخ</TableHead>
+                <TableHead>مشتری</TableHead>
+                <TableHead>اقلام</TableHead>
+                <TableHead>مبلغ</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {recentSales.map((sale) => (
+                <TableRow key={sale.id}>
+                  <TableCell>{formatPersianDate(new Date(sale.date), 'date')}</TableCell>
+                  <TableCell>{sale.customerName || '—'}</TableCell>
+                  <TableCell>
+                    <Badge variant="chip">{sale.items.length} قلم</Badge>
+                  </TableCell>
+                  <TableCell className="tabular-nums font-medium text-primary">
+                    {formatToman(sale.total)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        ) : (
+          <p className="py-8 text-center text-sm text-muted-foreground">هنوز فروشی ثبت نشده است.</p>
+        )}
+      </DataSection>
     </div>
   );
 }

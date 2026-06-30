@@ -164,6 +164,68 @@ const getPaymentsByIds = (ids: string[]): Promise<Payment[]> => {
     });
 };
 
+const getAllPayments = (): Promise<Payment[]> => {
+    return new Promise(async (resolve, reject) => {
+        const db = await openDB();
+        const store = getStore(PAYMENT_STORE, 'readonly');
+        const request = store.getAll();
+        request.onsuccess = () => resolve(request.result.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+        request.onerror = () => reject(request.error);
+    });
+};
+
+const updatePayment = async (
+    payment: Payment,
+    attachments: Omit<Attachment, 'sourceId' | 'sourceType'>[]
+): Promise<void> => {
+    const db = await openDB();
+    const tx = db.transaction([PAYMENT_STORE, ATTACHMENT_STORE], 'readwrite');
+    const paymentStore = tx.objectStore(PAYMENT_STORE);
+    const attachmentStore = tx.objectStore(ATTACHMENT_STORE);
+    const existing = await getAttachmentsBySourceId(payment.id);
+    const incomingExistingIds = attachments.filter(att => att.id && !att.id.startsWith('new-')).map(att => att.id);
+
+    existing
+      .filter(att => !incomingExistingIds.includes(att.id))
+      .forEach(att => attachmentStore.delete(att.id));
+
+    const finalAttachmentIds = attachments.map(att => {
+        const attachmentId = att.id && !att.id.startsWith('new-')
+            ? att.id
+            : Date.now().toString() + Math.random();
+        attachmentStore.put({
+            ...att,
+            id: attachmentId,
+            sourceId: payment.id,
+            sourceType: 'payment',
+        } as Attachment);
+        return attachmentId;
+    });
+
+    paymentStore.put({ ...payment, attachmentIds: finalAttachmentIds });
+
+    return new Promise((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+};
+
+const deletePayment = async (id: string): Promise<void> => {
+    const db = await openDB();
+    const tx = db.transaction([PAYMENT_STORE, ATTACHMENT_STORE], 'readwrite');
+    const paymentStore = tx.objectStore(PAYMENT_STORE);
+    const attachmentStore = tx.objectStore(ATTACHMENT_STORE);
+    const attachments = await getAttachmentsBySourceId(id);
+
+    attachments.forEach(att => attachmentStore.delete(att.id));
+    paymentStore.delete(id);
+
+    return new Promise((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+};
+
 const getAllEmployees = (): Promise<Employee[]> => {
     return new Promise(async (resolve, reject) => {
         const db = await openDB();
@@ -225,6 +287,12 @@ const deleteRecurringExpense = (id: string): Promise<void> => {
         request.onerror = () => reject(request.error);
     });
 };
+
+const recurringOccurrenceKey = (date: Date) => date.toISOString().slice(0, 10);
+const recurringExpenseTransactionId = (recurringId: string, date: Date) => `recurring-${recurringId}-${recurringOccurrenceKey(date)}`;
+const nextRecurringDueDate = (date: Date, frequency: RecurringExpenseFrequency) => (
+  frequency === 'monthly' ? addMonths(date, 1) : addYears(date, 1)
+);
 
 const addExpense = (expense: Omit<Expense, 'id'|'attachmentIds'>, attachments: Omit<Attachment, 'id' | 'sourceId' | 'sourceType'>[]): Promise<void> => {
   return new Promise(async (resolve, reject) => {
@@ -592,35 +660,47 @@ export const IndexedDBDataProvider: DataProvider = {
     let expensesAddedCount = 0;
 
     for (const re of allRecurring) {
-        let lastApplied = re.lastAppliedDate ? startOfDay(new Date(re.lastAppliedDate)) : startOfDay(new Date(re.startDate));
-        let nextDueDate: Date;
+        let nextDueDate = re.lastAppliedDate
+          ? nextRecurringDueDate(startOfDay(new Date(re.lastAppliedDate)), re.frequency)
+          : startOfDay(new Date(re.startDate));
         
         while (true) {
-             if (re.frequency === 'monthly') {
-                nextDueDate = addMonths(lastApplied, 1);
-            } else {
-                nextDueDate = addYears(lastApplied, 1);
-            }
-            
             if (isBefore(nextDueDate, today) || isEqual(nextDueDate, today)) {
-                if(re.lastAppliedDate && startOfDay(new Date(re.lastAppliedDate)) >= nextDueDate) {
-                     lastApplied = nextDueDate;
-                     continue;
-                }
-                const newExpense: Omit<Expense, 'id'|'attachmentIds'> = {
+                const expenseId = recurringExpenseTransactionId(re.id, nextDueDate);
+                const existing = await new Promise<Expense | undefined>((resolve, reject) => {
+                    const tx = db.transaction(EXPENSE_STORE, 'readonly');
+                    const store = tx.objectStore(EXPENSE_STORE);
+                    const request = store.get(expenseId);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+
+                if (!existing) {
+                  const newExpense: Expense = {
+                    id: expenseId,
                     title: re.title,
                     amount: re.amount,
                     date: nextDueDate.toISOString(),
-                };
-                await addExpense(newExpense, []);
-                expensesAddedCount++;
+                    attachmentIds: [],
+                    recurringExpenseId: re.id,
+                    recurringOccurrenceDate: recurringOccurrenceKey(nextDueDate),
+                  };
+                  await new Promise<void>((resolve, reject) => {
+                    const tx = db.transaction(EXPENSE_STORE, 'readwrite');
+                    const store = tx.objectStore(EXPENSE_STORE);
+                    const request = store.put(newExpense);
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => reject(request.error);
+                  });
+                  expensesAddedCount++;
+                }
 
                 const tx = db.transaction(RECURRING_EXPENSE_STORE, 'readwrite');
                 const store = tx.objectStore(RECURRING_EXPENSE_STORE);
                 store.put({ ...re, lastAppliedDate: nextDueDate.toISOString() });
                 
                 await new Promise<void>(res => { tx.oncomplete = () => res(); });
-                lastApplied = nextDueDate;
+                nextDueDate = nextRecurringDueDate(nextDueDate, re.frequency);
             } else {
                 break;
             }
@@ -660,10 +740,40 @@ export const IndexedDBDataProvider: DataProvider = {
     });
   },
   getAllEmployees,
+  updateEmployee: async (id, data) => {
+    const db = await openDB();
+    const store = getStore(EMPLOYEE_STORE, 'readwrite');
+    const existing = await new Promise<Employee | undefined>((resolve, reject) => {
+      const req = store.get(id);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    if (!existing) return;
+    store.put({ ...existing, ...data });
+  },
+  activateEmployee: async (id) => {
+    const employees = await getAllEmployees();
+    const employee = employees.find((e) => e.id === id);
+    if (!employee) return;
+    const db = await openDB();
+    const store = getStore(EMPLOYEE_STORE, 'readwrite');
+    store.put({ ...employee, isActive: true });
+  },
+  deactivateEmployee: async (id) => {
+    const employees = await getAllEmployees();
+    const employee = employees.find((e) => e.id === id);
+    if (!employee) return;
+    const db = await openDB();
+    const store = getStore(EMPLOYEE_STORE, 'readwrite');
+    store.put({ ...employee, isActive: false });
+  },
   deleteEmployee,
   getAttachmentsBySourceId,
   addPayment,
   getPaymentsByIds,
+  getAllPayments,
+  updatePayment,
+  deletePayment,
   uploadFile: async (file) => {
     return fileToBase64(file);
   },

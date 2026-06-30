@@ -11,6 +11,7 @@ export interface Attachment {
   description?: string;
   receiptNumber?: string;
   receiptImage?: string; // URL to the image in storage
+  media?: ProductMedia[];
 }
 
 export interface ProductCost {
@@ -18,6 +19,13 @@ export interface ProductCost {
   title: string;
   amount: number;
   currency: Currency;
+}
+
+export interface ProductMedia {
+  id: string;
+  url: string;
+  type: 'image' | 'video';
+  name?: string;
 }
 
 export interface Product {
@@ -29,6 +37,7 @@ export interface Product {
   costs: ProductCost[];
   profitMargin: number; // Percentage
   imageUrl?: string; // Base64 or URL
+  media?: ProductMedia[];
 }
 
 export interface Customer {
@@ -80,6 +89,8 @@ export interface Employee {
   position: string;
   salary: number; // Monthly salary in TOMAN
   recurringExpenseId: string; // The ID of the corresponding recurring expense
+  isActive?: boolean;
+  userProfileId?: string;
 }
 
 export interface Expense {
@@ -88,6 +99,8 @@ export interface Expense {
   amount: number;
   date: string;
   attachmentIds: string[];
+  recurringExpenseId?: string;
+  recurringOccurrenceDate?: string;
 }
 
 export interface RecurringExpense {
@@ -97,6 +110,8 @@ export interface RecurringExpense {
   frequency: RecurringExpenseFrequency;
   startDate: string; // ISO date string
   lastAppliedDate?: string; // ISO date string
+  isActive?: boolean;
+  endDate?: string;
 }
 
 export interface AppSettings {
@@ -108,5 +123,9 @@ export interface UserProfile {
     email?: string | null;
     displayName?: string | null;
     photoURL?: string | null;
-    role: 'user' | 'superadmin';
+    role: 'user' | 'employee' | 'superadmin';
+    password?: string;
+    authProvider?: 'local' | 'google' | 'telegram';
+    ownerId?: string;
+    employeeId?: string;
 }
