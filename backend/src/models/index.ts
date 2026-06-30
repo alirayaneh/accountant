@@ -110,9 +110,7 @@ async function migrateExchangeRatesLegacyIndex() {
     }
 }
 
-async function migrateTenantColumns() {
-    const queryInterface = sequelize.getQueryInterface();
-
+async function migrateTenantColumnsPreSync() {
     for (const tableName of TENANT_TABLES) {
         await ensureColumn(tableName, 'userId', {
             type: DataTypes.STRING,
@@ -146,6 +144,10 @@ async function migrateTenantColumns() {
         type: DataTypes.STRING,
         allowNull: true,
     });
+}
+
+async function migrateTenantColumnsPostSync() {
+    const queryInterface = sequelize.getQueryInterface();
 
     const firstUser = await UserProfile.findOne({ order: [['createdAt', 'ASC']] });
     if (firstUser) {
@@ -213,13 +215,13 @@ async function migrateTenantColumns() {
 
 export const syncDatabase = async (force: boolean = false) => {
     try {
-        // Add userId and other columns before sync tries to create indexes on them.
+        // Add columns on existing tables before sync creates indexes on them.
         if (!force) {
-            await migrateTenantColumns();
+            await migrateTenantColumnsPreSync();
         }
         await sequelize.sync({ force });
         if (!force) {
-            await migrateTenantColumns();
+            await migrateTenantColumnsPostSync();
         }
         console.log('Database synced successfully');
     } catch (error) {

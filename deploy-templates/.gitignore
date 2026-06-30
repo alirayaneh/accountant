@@ -1,5 +1,10 @@
-node_modules/
-backend/node_modules/
+# فقط node_modules نصب‌شده روی سرور — نه runtime باندل Next
+/backend/node_modules/
+/node_modules/
+
+# Next standalone runtime باید داخل git باشد:
+# .next/standalone/node_modules/
+
 .env
 .env.local
 uploads/*

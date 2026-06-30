@@ -99,6 +99,13 @@ copyDir(publicSrc, path.join(standaloneDest, 'public'));
 copyDir(staticSrc, path.join(outDir, '.next/static'));
 copyDir(publicSrc, path.join(outDir, 'public'));
 
+const nextRuntime = path.join(standaloneDest, 'node_modules/next/package.json');
+if (!fs.existsSync(nextRuntime)) {
+  throw new Error(
+    'Standalone build is missing node_modules/next. Run npm run build:web:server first.',
+  );
+}
+
 const templatesDir = path.join(root, 'deploy-templates');
 if (fs.existsSync(templatesDir)) {
   for (const entry of fs.readdirSync(templatesDir, { withFileTypes: true })) {

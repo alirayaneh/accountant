@@ -111,6 +111,7 @@ const deployInfo = JSON.parse(fs.readFileSync(path.join(workDir, 'deploy-info.js
 const commitMessage = `Deploy ${deployInfo.packageVersion} (${deployInfo.commit.slice(0, 7)})`;
 
 run('git add -A', { cwd: workDir });
+run('git add -f .next/standalone/node_modules', { cwd: workDir });
 
 let hasChanges = true;
 try {

@@ -466,6 +466,59 @@ sudo certbot --nginx -d yourdomain.com
 - Deploy key را در `accountant_deploy` با write access اضافه کنید
 - Secret `DEPLOY_REPO_SSH_KEY` را در ریپوی سورس بررسی کنید
 
+### Table 'php.user_profiles' doesn't exist / migrate fails on fresh DB
+
+**علت ۱ (باگ — رفع شد):** قبل از `sequelize.sync()` روی جدول خالی کوئری زده می‌شد. نسخه جدید backend را deploy کنید.
+
+**علت ۲ (تنظیمات):** دیتابیس `php` یعنی `DB_NAME=php` — بهتر است دیتابیس جدا بسازید:
+
+```sql
+CREATE DATABASE easystock CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+GRANT ALL ON easystock.* TO 'php'@'localhost';
+```
+
+در `.env`:
+
+```env
+DB_NAME=easystock
+DB_USER=php
+DB_PASSWORD=...
+```
+
+بعد از deploy جدید:
+
+```bash
+pm2 restart easystock-server
+pm2 logs easystock-server --lines 30
+```
+
+باید ببینید: `Database synced successfully`
+
+### Cannot find module 'next'
+
+علت: پوشه `.next/standalone/node_modules` در ریپوی deploy commit نشده (`.gitignore` قدیمی همه `node_modules` را نادیده می‌گرفت).
+
+**رفع دائمی:** از برنچ `server` دیپلوی مجدد بزنید:
+
+```bash
+npm run deploy:push
+```
+
+روی سرور:
+
+```bash
+./server-update.sh
+./start-server.sh
+```
+
+**بررسی روی سرور:**
+
+```bash
+ls .next/standalone/node_modules/next/package.json
+```
+
+اگر فایل وجود نداشت، `git pull` جدید کافی نیست — باید deploy جدید push شود.
+
 ### Frontend build not found
 
 ```bash

@@ -24,6 +24,16 @@ if [[ ! -d backend/node_modules ]]; then
   npm ci --omit=dev --prefix backend
 fi
 
+STANDALONE_DIR="$ROOT/.next/standalone"
+if [[ ! -f "$STANDALONE_DIR/node_modules/next/package.json" ]]; then
+  echo "خطا: ماژول next در .next/standalone/node_modules یافت نشد."
+  echo "این معمولاً یعنی دیپلوی قدیمی است. روی ماشین بیلد اجرا کنید:"
+  echo "  npm run deploy:push"
+  echo "سپس روی سرور:"
+  echo "  ./server-update.sh"
+  exit 1
+fi
+
 mkdir -p uploads backend/uploads
 
 echo ">> راه‌اندازی EasyStock (server mode)..."
