@@ -21,6 +21,7 @@ import settingsRoutes from './routes/settings';
 import attachmentRoutes from './routes/attachments';
 import uploadRoutes from './routes/upload';
 import userRoutes from './routes/users';
+import landingRoutes from './routes/landing';
 import licenseRoutes from './routes/license';
 import adminRoutes from './routes/admin';
 import licenseIssuerRoutes from './routes/license-issuer';
@@ -178,6 +179,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/attachments', attachmentRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/landing', landingRoutes);
 
 if (isServerDeployment()) {
     app.use('/api/admin', adminRoutes);

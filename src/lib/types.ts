@@ -131,3 +131,43 @@ export interface UserProfile {
     impersonating?: boolean;
     impersonatorId?: string;
 }
+
+export interface LandingPostLink {
+    label: string;
+    url: string;
+}
+
+export interface LandingPost {
+    id: string;
+    title: string;
+    description: string;
+    badge?: string;
+    previewUrl: string;
+    previewType: 'image' | 'video';
+    body?: string;
+    bodyMediaUrl?: string;
+    bodyMediaType?: 'image' | 'video';
+    tags: string[];
+    links: LandingPostLink[];
+    sortOrder: number;
+    isPublished: boolean;
+    createdAt?: string;
+    updatedAt?: string;
+}
+
+export interface LandingContact {
+    type: 'telegram' | 'phone' | 'email' | 'website' | 'custom';
+    label: string;
+    value: string;
+    href?: string;
+}
+
+export interface LandingSettings {
+    sectionTitle: string;
+    contacts: LandingContact[];
+}
+
+export interface LandingContent {
+    posts: LandingPost[];
+    settings: LandingSettings;
+}

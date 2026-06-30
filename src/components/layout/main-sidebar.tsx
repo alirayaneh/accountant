@@ -17,6 +17,7 @@ import {
   Shield,
   Package,
   BarChart3,
+  LayoutGrid,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -83,6 +84,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
 
 const adminMenuItems: NavItem[] = [
   { href: '/dashboard/admin/users', label: 'مدیریت کاربران', icon: Shield },
+  { href: '/dashboard/admin/landing', label: 'محتوای لندینگ', icon: LayoutGrid },
 ];
 
 export function MainSidebar() {

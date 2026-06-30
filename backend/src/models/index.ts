@@ -16,6 +16,8 @@ import LicenseInfo from './LicenseInfo';
 import AdminAuditLog from './AdminAuditLog';
 import License from './License';
 import LicenseActivation from './LicenseActivation';
+import LandingPost from './LandingPost';
+import LandingSettings from './LandingSettings';
 
 const models = {
     Product,
@@ -34,6 +36,8 @@ const models = {
     AdminAuditLog,
     License,
     LicenseActivation,
+    LandingPost,
+    LandingSettings,
 };
 
 const TENANT_TABLES = [
@@ -247,7 +251,9 @@ export {
     LicenseInfo,
     AdminAuditLog,
     License,
-    LicenseActivation
+    LicenseActivation,
+    LandingPost,
+    LandingSettings
 };
 
 export default models;

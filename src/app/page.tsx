@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Logo } from '@/components/logo';
 import { getLocalApiURL, getRemoteApiURL } from '@/lib/api-url';
 import { Badge } from '@/components/ui/badge';
+import { LandingContentSection } from '@/components/landing/landing-content-section';
 
 const features = [
   { icon: BarChart3, text: 'داشبورد مالی با نمودارهای زنده' },
@@ -197,7 +198,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="min-h-screen">
+      <div className="flex min-h-screen">
       {/* Brand panel */}
       <div className="hidden flex-1 flex-col justify-center gap-8 p-12 lg:flex">
         <Badge variant="success" className="w-fit gap-2">
@@ -266,6 +268,9 @@ export default function LoginPage() {
           </CardContent>
         </Card>
       </div>
+      </div>
+
+      <LandingContentSection />
     </div>
   );
 }

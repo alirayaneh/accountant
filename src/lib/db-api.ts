@@ -12,7 +12,10 @@ import type {
     Attachment,
     AppSettings,
     UserProfile,
-    AttachmentSource
+    AttachmentSource,
+    LandingPost,
+    LandingSettings,
+    LandingContent,
 } from './types';
 
 const parseArrayField = <T>(value: unknown): T[] => {
@@ -492,6 +495,53 @@ export const APIDataProvider = (baseURL: string, getToken?: () => string | null)
                 headers: headers(),
             });
             return handleResponse(res);
+        },
+
+        getLandingContent: async () => {
+            const res = await fetch(`${baseURL}/api/landing`);
+            return handleResponse(res) as Promise<LandingContent>;
+        },
+
+        getLandingContentAdmin: async () => {
+            const res = await fetch(`${baseURL}/api/landing/admin`, {
+                headers: headers(),
+            });
+            return handleResponse(res) as Promise<LandingContent>;
+        },
+
+        createLandingPost: async (post) => {
+            const res = await fetch(`${baseURL}/api/landing/posts`, {
+                method: 'POST',
+                headers: headers(),
+                body: JSON.stringify(post),
+            });
+            return handleResponse(res) as Promise<LandingPost>;
+        },
+
+        updateLandingPost: async (id, post) => {
+            const res = await fetch(`${baseURL}/api/landing/posts/${id}`, {
+                method: 'PUT',
+                headers: headers(),
+                body: JSON.stringify(post),
+            });
+            return handleResponse(res) as Promise<LandingPost>;
+        },
+
+        deleteLandingPost: async (id) => {
+            const res = await fetch(`${baseURL}/api/landing/posts/${id}`, {
+                method: 'DELETE',
+                headers: headers(),
+            });
+            await handleResponse(res);
+        },
+
+        updateLandingSettings: async (settings) => {
+            const res = await fetch(`${baseURL}/api/landing/settings`, {
+                method: 'PUT',
+                headers: headers(),
+                body: JSON.stringify(settings),
+            });
+            return handleResponse(res) as Promise<LandingSettings>;
         },
     };
 };

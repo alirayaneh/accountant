@@ -487,6 +487,27 @@ export const FirestoreDataProvider = (userId: string, isSuperAdmin: boolean): Da
             });
         }
         return userProfiles;
-    }
+    },
+
+    getLandingContent: async () => ({
+        posts: [],
+        settings: { sectionTitle: 'نمونه پروژه‌ها', contacts: [] },
+    }),
+    getLandingContentAdmin: async () => ({
+        posts: [],
+        settings: { sectionTitle: 'نمونه پروژه‌ها', contacts: [] },
+    }),
+    createLandingPost: async () => {
+        throw new Error('Landing CMS is only available in online mode');
+    },
+    updateLandingPost: async () => {
+        throw new Error('Landing CMS is only available in online mode');
+    },
+    deleteLandingPost: async () => {
+        throw new Error('Landing CMS is only available in online mode');
+    },
+    updateLandingSettings: async () => {
+        throw new Error('Landing CMS is only available in online mode');
+    },
   };
 };

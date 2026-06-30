@@ -800,4 +800,25 @@ export const IndexedDBDataProvider: DataProvider = {
     // In local mode, we don't have a concept of multiple users.
     return Promise.resolve([]);
   },
+
+  getLandingContent: async () => ({
+    posts: [],
+    settings: { sectionTitle: 'نمونه پروژه‌ها', contacts: [] },
+  }),
+  getLandingContentAdmin: async () => ({
+    posts: [],
+    settings: { sectionTitle: 'نمونه پروژه‌ها', contacts: [] },
+  }),
+  createLandingPost: async () => {
+    throw new Error('Landing CMS is only available in online mode');
+  },
+  updateLandingPost: async () => {
+    throw new Error('Landing CMS is only available in online mode');
+  },
+  deleteLandingPost: async () => {
+    throw new Error('Landing CMS is only available in online mode');
+  },
+  updateLandingSettings: async () => {
+    throw new Error('Landing CMS is only available in online mode');
+  },
 };

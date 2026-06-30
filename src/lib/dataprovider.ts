@@ -1,4 +1,4 @@
-import type { Product, Sale, ExchangeRate, CostTitle, Customer, Expense, RecurringExpense, Employee, Payment, Attachment, AttachmentSource, AppSettings, UserProfile } from '@/lib/types';
+import type { Product, Sale, ExchangeRate, CostTitle, Customer, Expense, RecurringExpense, Employee, Payment, Attachment, AttachmentSource, AppSettings, UserProfile, LandingPost, LandingSettings, LandingContent } from '@/lib/types';
 
 export interface DataProvider {
   // Product Operations
@@ -70,4 +70,11 @@ export interface DataProvider {
   stopImpersonation: () => Promise<{ token: string; user: UserProfile }>;
   getMyDesktopLicense: () => Promise<Record<string, unknown>>;
   regenerateDesktopLicense: () => Promise<Record<string, unknown>>;
+
+  getLandingContent: () => Promise<LandingContent>;
+  getLandingContentAdmin: () => Promise<LandingContent>;
+  createLandingPost: (post: Omit<LandingPost, 'id' | 'createdAt' | 'updatedAt'>) => Promise<LandingPost>;
+  updateLandingPost: (id: string, post: Partial<Omit<LandingPost, 'id' | 'createdAt' | 'updatedAt'>>) => Promise<LandingPost>;
+  deleteLandingPost: (id: string) => Promise<void>;
+  updateLandingSettings: (settings: LandingSettings) => Promise<LandingSettings>;
 }
