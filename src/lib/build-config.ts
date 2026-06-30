@@ -18,4 +18,5 @@ export const LOCKED_STORAGE_TYPE: StorageType | null = IS_STORAGE_LOCKED
   ? ALLOWED_STORAGE_TYPES[0]
   : null;
 export const IS_ELECTRON_BUILD = process.env.NEXT_PUBLIC_IS_ELECTRON === 'true';
+export const IS_SERVER_BUILD = process.env.NEXT_PUBLIC_DEPLOYMENT_MODE === 'server';
 export const IS_STORAGE_CONFIGURABLE = !IS_STORAGE_LOCKED;

@@ -3,6 +3,7 @@ import { Strategy as LocalStrategy } from 'passport-local';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import bcrypt from 'bcryptjs';
 import { UserProfile } from '../models';
+import { ensureSuperadminRole } from '../utils/superadmin';
 
 // Local Strategy (Username/Password)
 passport.use(
@@ -29,7 +30,8 @@ passport.use(
                     return done(null, false, { message: 'Invalid email or password' });
                 }
 
-                return done(null, user);
+                const promoted = await ensureSuperadminRole(user);
+                return done(null, promoted);
             } catch (error) {
                 return done(error);
             }
@@ -69,7 +71,8 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
                         });
                     }
 
-                    return done(null, user);
+                    const promoted = await ensureSuperadminRole(user);
+                    return done(null, promoted);
                 } catch (error) {
                     return done(error as Error);
                 }

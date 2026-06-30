@@ -15,6 +15,8 @@ import { Logo } from '@/components/logo';
 import { ThemeSwitcher } from '@/components/layout/theme-switcher';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LicenseBlockOverlay } from '@/components/license/license-block-overlay';
+import { Button } from '@/components/ui/button';
+import { AlertTriangle } from 'lucide-react';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
     const { user, authLoading } = useAppContext();
@@ -44,12 +46,25 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-    const { settings } = useAppContext();
+    const { settings, isImpersonating, user, stopImpersonation } = useAppContext();
   return (
     <ProtectedRoute>
       <div className="flex min-h-screen">
         <MainSidebar />
         <SidebarInset className="flex flex-1 flex-col">
+          {isImpersonating && (
+            <div className="flex items-center justify-between gap-3 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                <span>
+                  در حال مشاهده به عنوان {user?.displayName || user?.email}
+                </span>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => stopImpersonation()}>
+                بازگشت به ادمین
+              </Button>
+            </div>
+          )}
           <header className="sticky top-0 z-10 hidden items-center justify-between border-b border-white/10 bg-background/80 px-6 py-3 backdrop-blur-xl md:flex">
             <Logo>{settings.shopName || 'حسابدار آنلاین آموزا'}</Logo>
             <ThemeSwitcher />
