@@ -17,7 +17,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { StatCard } from '@/components/ui/stat-card';
 import { formatToman } from '@/lib/format';
 import { IS_ELECTRON_BUILD } from '@/lib/build-config';
-import { _validateModulecfff4a } from '@/lib/license/gates/products-detail';
+import { _verifyModule8ce2bd } from '@/lib/license/gates/products-detail';
 
 export default function ProductProfilePage() {
   const { id } = useParams();
@@ -31,7 +31,7 @@ export default function ProductProfilePage() {
 
   useEffect(() => {
     if (!IS_ELECTRON_BUILD) return;
-    _validateModulecfff4a().catch(() => {});
+    _verifyModule8ce2bd().catch(() => {});
   }, []);
 
   useEffect(() => {

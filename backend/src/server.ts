@@ -1,11 +1,9 @@
 import express from 'express';
 import cors from 'cors';
-import session from 'express-session';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import { createRequire } from 'module';
-import passport from './config/passport';
 import { syncDatabase } from './models';
 
 // Routes
@@ -141,21 +139,6 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Session middleware
-app.use(session({
-    secret: process.env.SESSION_SECRET || 'your-super-secret-session-key',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-    }
-}));
-
-// Passport middleware
-app.use(passport.initialize());
-app.use(passport.session());
-
 // Serve uploaded files
 const uploadDir = process.env.UPLOAD_DIR || './uploads';
 app.use('/uploads', express.static(path.resolve(uploadDir)));
@@ -175,7 +158,7 @@ app.use('/api/attachments', attachmentRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/users', userRoutes);
 
-if (process.env.LICENSE_ENABLED === 'true' && process.env.DB_TYPE !== 'mysql') {
+if (process.env.LICENSE_ENABLED === 'true') {
     app.use('/api/license', licenseRoutes);
 }
 
@@ -242,13 +225,10 @@ const startServer = async () => {
             });
         });
 
-        const dbType = process.env.DB_TYPE || 'sqlite';
-        if (dbType === 'sqlite') {
-            const sqlitePath = path.resolve(process.env.SQLITE_PATH || './database.sqlite');
-            if (process.env.SQLITE_REQUIRE_EXISTS === 'true' && !fs.existsSync(sqlitePath)) {
-                console.error(`SQLite database file is missing: ${sqlitePath}`);
-                process.exit(1);
-            }
+        const sqlitePath = path.resolve(process.env.SQLITE_PATH || './database.sqlite');
+        if (process.env.SQLITE_REQUIRE_EXISTS === 'true' && !fs.existsSync(sqlitePath)) {
+            console.error(`SQLite database file is missing: ${sqlitePath}`);
+            process.exit(1);
         }
 
         // Sync database
@@ -259,7 +239,7 @@ const startServer = async () => {
         app.listen(PORT, () => {
             console.log(`✓ Server running on port ${PORT}`);
             console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
-            console.log(`✓ Database type: ${process.env.DB_TYPE || 'sqlite'}`);
+            console.log(`✓ Database type: sqlite`);
             console.log(`✓ API available at: http://localhost:${PORT}`);
             console.log(`✓ Health check: http://localhost:${PORT}/health`);
             if (nextHandler) {

@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import passport from '../config/passport';
 import { UserProfile } from '../models';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { seedDefaultExchangeRates } from '../utils/seed';
@@ -103,27 +102,6 @@ router.post('/login', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
-
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-
-router.get('/google/callback',
-    passport.authenticate('google', { session: false, failureRedirect: '/login' }),
-    async (req: any, res) => {
-        try {
-            let user = req.user as UserProfile;
-            if (user.role === 'user' && !user.ownerId) {
-                await seedDefaultExchangeRates(user.id);
-            }
-            user = await ensureSuperadminRole(user);
-            const token = jwt.sign(buildTokenPayload(user), JWT_SECRET, { expiresIn: '7d' });
-            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:9002';
-            res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
-        } catch (error) {
-            console.error('Google callback error:', error);
-            res.redirect('/login?error=auth_failed');
-        }
-    }
-);
 
 router.get('/me', authenticateToken, async (req, res) => {
     try {

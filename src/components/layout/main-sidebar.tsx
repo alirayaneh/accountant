@@ -94,7 +94,7 @@ const electronMenuItems: NavItem[] = [
 export function MainSidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { auth, user, settings, storageType } = useAppContext();
+  const { user, settings, storageType } = useAppContext();
 
   const handleLogout = () => {
     localStorage.removeItem('apiToken');

@@ -3,10 +3,8 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { APIDataProvider } from '@/lib/db-api';
-import { createFirebaseApp } from '@/lib/firebase';
 import { getLocalApiURL, getRemoteApiURL } from '@/lib/api-url';
 import type { DataProvider } from '@/lib/dataprovider';
-import { getAuth } from 'firebase/auth';
 import type { UserProfile, AppSettings } from '@/lib/types';
 import type { StorageType } from '@/lib/storage-types';
 import {
@@ -24,7 +22,6 @@ const normalizeStorageType = (value: string | null): StorageType => {
   return 'sqlite';
 };
 
-const isAPIStorage = (storageType: StorageType) => storageType === 'sqlite' || storageType === 'online';
 const getApiURL = (storageType: StorageType) => (
   storageType === 'online' ? getRemoteApiURL() : getLocalApiURL()
 );
@@ -39,7 +36,6 @@ interface AppContextValue {
   isStorageConfigurable: boolean;
   user: UserProfile | null | undefined;
   authLoading: boolean;
-  auth: ReturnType<typeof getAuth>;
   settings: AppSettings;
   setSettings: (settings: AppSettings) => void;
   isImpersonating: boolean;
@@ -47,9 +43,6 @@ interface AppContextValue {
 }
 
 const AppContext = React.createContext<AppContextValue | null>(null);
-
-const app = createFirebaseApp();
-const auth = getAuth(app);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [storageType, setStorageType] = useState<StorageType>('sqlite');
@@ -165,12 +158,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     isStorageConfigurable: IS_STORAGE_CONFIGURABLE,
     user,
     authLoading,
-    auth,
     settings,
     setSettings,
     isImpersonating: Boolean(user?.impersonating),
     stopImpersonation,
-  }), [dataProvider, isLoading, isGlobalLoading, storageType, changeStorageType, user, authLoading, auth, settings, stopImpersonation]);
+  }), [dataProvider, isLoading, isGlobalLoading, storageType, changeStorageType, user, authLoading, settings, stopImpersonation]);
 
   return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
 }

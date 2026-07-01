@@ -556,7 +556,7 @@ function StorageSettingsForm() {
 
   const storageOptions = [
     { value: 'sqlite' as const, label: 'آفلاین', desc: 'ذخیره‌سازی محلی روی درایو یا پوشه دلخواه' },
-    { value: 'online' as const, label: 'آنلاین (سرور)', desc: 'Backend API + MySQL روی سرور' },
+    { value: 'online' as const, label: 'آنلاین (سرور)', desc: 'اتصال به API سرور از راه دور' },
   ].filter((option) => ALLOWED_STORAGE_TYPES.includes(option.value));
 
   const showOfflineFolderSettings = IS_ELECTRON_BUILD
@@ -722,7 +722,7 @@ function StorageSettingsForm() {
     window.location.reload();
   }
 
-  const isAPIMode = storageType === 'mysql' || storageType === 'sqlite' || storageType === 'online';
+  const isAPIMode = storageType === 'sqlite' || storageType === 'online';
   const hasToken = typeof window !== 'undefined' && localStorage.getItem('apiToken');
   const selectedOption = storageOptions.find(option => option.value === pendingStorageType);
   const currentOption = storageOptions.find(option => option.value === storageType);
@@ -1008,7 +1008,7 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle>محل ذخیره‌سازی داده‌ها</CardTitle>
               <CardDescription>
-                انتخاب بین ذخیره‌سازی آفلاین (محلی و خارج از محل نصب) یا سرور آنلاین با MySQL.
+                انتخاب بین ذخیره‌سازی آفلاین (محلی و خارج از محل نصب) یا اتصال به سرور آنلاین.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-8">

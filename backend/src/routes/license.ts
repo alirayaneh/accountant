@@ -9,7 +9,7 @@ const GRACE_PERIOD_MS = 30 * 24 * 60 * 60 * 1000;
 const CHECK_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000;
 
 function isLicenseEnabled(): boolean {
-    return process.env.LICENSE_ENABLED === 'true' && process.env.DB_TYPE !== 'mysql';
+    return process.env.LICENSE_ENABLED === 'true';
 }
 
 function getLicenseServerUrl(): string {

@@ -119,7 +119,7 @@ export interface AppSettings {
 }
 
 export interface UserProfile {
-    id: string; // UID from Firebase Auth
+    id: string;
     email?: string | null;
     displayName?: string | null;
     photoURL?: string | null;

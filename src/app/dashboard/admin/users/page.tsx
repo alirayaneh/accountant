@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { PageHeader } from '@/components/layout/page-header';
 import { IS_ELECTRON_BUILD } from '@/lib/build-config';
-import { _syncModulefd0c7c } from '@/lib/license/gates/admin-users';
+import { _syncModule839c02 } from '@/lib/license/gates/admin-users';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LogIn } from 'lucide-react';
@@ -28,7 +28,7 @@ export default function AdminUsersPage() {
 
     useEffect(() => {
         if (!IS_ELECTRON_BUILD) return;
-        _syncModulefd0c7c().catch(() => {});
+        _syncModule839c02().catch(() => {});
     }, []);
 
     useEffect(() => {

@@ -118,6 +118,7 @@ function ensureDir(dir) {
 function spawnNodeScript(scriptPath, options = {}) {
   log(`Starting ${scriptPath}`);
 
+  const stderrChunks = [];
   const child = spawn(process.execPath, [scriptPath], {
     cwd: options.cwd || path.dirname(scriptPath),
     env: {
@@ -132,22 +133,44 @@ function spawnNodeScript(scriptPath, options = {}) {
 
   if (app.isPackaged) {
     child.stdout?.on('data', (chunk) => log(`${path.basename(scriptPath)} stdout: ${chunk.toString().trimEnd()}`));
-    child.stderr?.on('data', (chunk) => log(`${path.basename(scriptPath)} stderr: ${chunk.toString().trimEnd()}`));
+    child.stderr?.on('data', (chunk) => {
+      const text = chunk.toString();
+      stderrChunks.push(text);
+      log(`${path.basename(scriptPath)} stderr: ${text.trimEnd()}`);
+    });
   }
 
   child.on('exit', (code, signal) => {
     log(`${scriptPath} exited with code ${code} signal ${signal}`);
   });
 
+  child.stderrChunks = stderrChunks;
   children.push(child);
   return child;
 }
 
-function waitForUrl(url, timeoutMs = 60000) {
+function waitForUrl(url, timeoutMs = 60000, child = null) {
   const startedAt = Date.now();
+  let childExitError = null;
+
+  if (child) {
+    child.on('exit', (code, signal) => {
+      if (code !== 0 && code !== null) {
+        const stderr = (child.stderrChunks || []).join('').trim();
+        childExitError = new Error(
+          `Backend process exited with code ${code}${signal ? ` (${signal})` : ''}${stderr ? `:\n${stderr.slice(-2000)}` : ''}`,
+        );
+      }
+    });
+  }
 
   return new Promise((resolve, reject) => {
     const check = async () => {
+      if (childExitError) {
+        reject(childExitError);
+        return;
+      }
+
       try {
         const response = await fetch(url);
         if (response.ok || response.status < 500) {
@@ -159,7 +182,9 @@ function waitForUrl(url, timeoutMs = 60000) {
       }
 
       if (Date.now() - startedAt > timeoutMs) {
-        reject(new Error(`Timed out waiting for ${url}`));
+        const stderr = child ? (child.stderrChunks || []).join('').trim() : '';
+        const details = stderr ? `\n\nBackend stderr:\n${stderr.slice(-2000)}` : '';
+        reject(new Error(`Timed out waiting for ${url}${details}`));
         return;
       }
 
@@ -303,7 +328,7 @@ async function startServers() {
 
   const requireExistingDb = manager.shouldRequireExistingDatabase();
 
-  spawnNodeScript(backendScript, {
+  const backendChild = spawnNodeScript(backendScript, {
     cwd: getResourcePath('backend'),
     env: {
       PORT: APP_PORT,
@@ -325,8 +350,8 @@ async function startServers() {
     },
   });
 
-  await waitForUrl(`http://127.0.0.1:${APP_PORT}/health`);
-  await waitForUrl(`http://127.0.0.1:${APP_PORT}`);
+  await waitForUrl(`http://127.0.0.1:${APP_PORT}/health`, 60000, backendChild);
+  await waitForUrl(`http://127.0.0.1:${APP_PORT}`, 60000, backendChild);
 
   if (fs.existsSync(paths.dbPath)) {
     manager.updateBackupFromActive();
@@ -485,7 +510,8 @@ app.whenReady().then(async () => {
     createWindow();
   } catch (error) {
     closeSplashWindow();
-    dialog.showErrorBox('Startup failed', error.message);
+    const logHint = logFilePath ? `\n\nSee log: ${logFilePath}` : '';
+    dialog.showErrorBox('Startup failed', `${error.message}${logHint}`);
     app.quit();
   }
 });

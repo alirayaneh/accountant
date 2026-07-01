@@ -2,25 +2,22 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { generateInventoryRecommendations } from '@/ai/flows/generate-inventory-recommendations';
-import type { Product, Sale, Expense, Payment } from '@/lib/types';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import type { Sale, Expense, Payment } from '@/lib/types';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAppContext } from '@/components/app-provider';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CURRENCY_SYMBOLS } from '@/lib/utils';
-import { Bot, Sparkles } from 'lucide-react';
+import { BarChart3 } from 'lucide-react';
 import { formatPersianDate } from '@/lib/date-utils';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatCard } from '@/components/ui/stat-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatToman } from '@/lib/format';
 import { IS_ELECTRON_BUILD } from '@/lib/build-config';
-import { _validateModulefeb86b } from '@/lib/license/gates/reports';
+import { _checkModule66fecf } from '@/lib/license/gates/reports';
 
 type TimeRange = 'all' | 'last_year' | 'this_year' | 'last_month' | 'this_month' | 'last_week' | 'this_week';
 
@@ -34,8 +31,6 @@ type ChartData = {
 };
 
 export default function ReportsPage() {
-  const [recommendations, setRecommendations] = useState('');
-  const [isAiLoading, setIsAiLoading] = useState(false);
   const [sales, setSales] = useState<Sale[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -45,7 +40,7 @@ export default function ReportsPage() {
 
   useEffect(() => {
     if (!IS_ELECTRON_BUILD) return;
-    _validateModulefeb86b().catch(() => {});
+    _checkModule66fecf().catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -55,7 +50,7 @@ export default function ReportsPage() {
       setGlobalLoading(true);
       try {
         await currentDb.applyRecurringExpenses();
-        const [allSales, allExpenses, allProducts] = await Promise.all([currentDb.getAllSales(), currentDb.getAllExpenses(), currentDb.getAllProducts()]);
+        const [allSales, allExpenses] = await Promise.all([currentDb.getAllSales(), currentDb.getAllExpenses()]);
         const paymentIds = allSales.flatMap(s => s.paymentIds || []);
         const allPayments = await currentDb.getPaymentsByIds(paymentIds);
         setSales(allSales);
@@ -73,49 +68,6 @@ export default function ReportsPage() {
     }
     fetchData();
   }, [db]);
-  
-  const handleGenerateReport = async () => {
-    if (!db) return;
-    setIsAiLoading(true);
-    setRecommendations('');
-    try {
-      const products: Product[] = await db.getAllProducts();
-      const salesData: Sale[] = await db.getAllSales();
-
-      if (products.length === 0 || salesData.length === 0) {
-        toast({
-          variant: 'default',
-          title: 'داده کافی نیست',
-          description: 'برای تولید گزارش هوشمند، به داده‌های بیشتری از فروش و موجودی نیاز است.',
-        });
-        setIsAiLoading(false);
-        return;
-      }
-
-      const stockLevels = JSON.stringify(
-        products.map((p) => ({ name: p.name, quantity: p.quantity, lowStockThreshold: p.lowStockThreshold }))
-      );
-
-      const salesSummary = salesData.flatMap(s => s.items).reduce((acc, item) => {
-        acc[item.productName] = (acc[item.productName] || 0) + item.quantity;
-        return acc;
-      }, {} as Record<string, number>);
-
-      const salesDataString = JSON.stringify(salesSummary);
-
-      const result = await generateInventoryRecommendations({ salesData: salesDataString, stockLevels });
-      setRecommendations(result.recommendations);
-    } catch (error) {
-      console.error('Failed to generate recommendations:', error);
-      toast({
-        variant: 'destructive',
-        title: 'خطا در تولید گزارش',
-        description: 'متاسفانه تولید گزارش هوشمند با مشکل مواجه شد.',
-      });
-    } finally {
-      setIsAiLoading(false);
-    }
-  };
 
   const { filteredSales, filteredExpenses } = useMemo(() => {
     const now = new Date();
@@ -148,7 +100,7 @@ export default function ReportsPage() {
       case 'all':
       default:
         isAll = true;
-        startDate = new Date(0); 
+        startDate = new Date(0);
         endDate = new Date();
         break;
     }
@@ -169,9 +121,9 @@ export default function ReportsPage() {
 
   const chartData = useMemo<ChartData[]>(() => {
     if (filteredSales.length === 0 && filteredExpenses.length === 0) return [];
-    
+
     const dataMap = new Map<string, { فروش: number, 'سود ناخالص': number, مخارج: number }>();
-    
+
     let useMonthBuckets = false;
     if (timeRange === 'this_year' || timeRange === 'last_year' || (timeRange === 'all' && (sales.length > 30 || expenses.length > 30))) {
         useMonthBuckets = true;
@@ -193,7 +145,7 @@ export default function ReportsPage() {
       const dateKey = getDateKey(sale.date);
       const saleItemsCost = sale.items.reduce((acc, item) => acc + (item.totalCost || 0), 0);
       const saleGrossProfit = sale.total - saleItemsCost;
-      
+
       const current = dataMap.get(dateKey) || { فروش: 0, 'سود ناخالص': 0, مخارج: 0 };
       current.فروش += sale.total;
       current['سود ناخالص'] += saleGrossProfit;
@@ -208,7 +160,7 @@ export default function ReportsPage() {
     });
 
     return Array.from(dataMap.entries())
-        .map(([name, values]) => ({ 
+        .map(([name, values]) => ({
             name: getDateLabel(name),
             sortKey: name,
             ...values,
@@ -238,7 +190,7 @@ export default function ReportsPage() {
         totalReceivables: totalRevenue - totalPaid,
     };
   }, [filteredSales, filteredExpenses, payments]);
-  
+
   const renderChart = (data: ChartData[], title: string) => (
      <Card variant="glass">
           <CardHeader>
@@ -314,7 +266,7 @@ export default function ReportsPage() {
         {sales.length > 0 || expenses.length > 0 ? (
         <>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-                <StatCard label="مجموع فروش" value={formatToman(totalSales)} icon={Bot} />
+                <StatCard label="مجموع فروش" value={formatToman(totalSales)} icon={BarChart3} />
                 <StatCard label="سود ناخالص" value={formatToman(totalGrossProfit)} />
                 <StatCard label="مجموع مخارج" value={formatToman(totalExpenses)} />
                 <StatCard label="سود خالص" value={formatToman(totalNetProfit)} trend={totalNetProfit >= 0 ? 'مثبت' : 'منفی'} trendUp={totalNetProfit >= 0} />
@@ -323,51 +275,6 @@ export default function ReportsPage() {
              <div className="grid gap-8">
                 {renderChart(chartData, 'نمودار جامع فروش، سود و مخارج')}
             </div>
-             <Card variant="glass" className="overflow-hidden">
-                <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
-                <div className="flex items-center gap-4">
-                    <div className="rounded-2xl border border-primary/20 bg-primary/10 p-3 text-primary">
-                        <Bot className="h-6 w-6" />
-                    </div>
-                    <div>
-                        <CardTitle>دستیار هوشمند انبار</CardTitle>
-                        <CardDescription>
-                        برای دریافت پیشنهادهای هوشمند درباره وضعیت موجودی و فروش کلیک کنید.
-                        </CardDescription>
-                    </div>
-                </div>
-                <Button onClick={handleGenerateReport} disabled={isAiLoading} variant="gradient">
-                    {isAiLoading ? (
-                        'در حال تولید...'
-                    ) : (
-                        <>
-                        <Sparkles className="me-2 h-4 w-4" /> تولید گزارش
-                        </>
-                    )}
-                    </Button>
-                </CardHeader>
-                <CardContent className="min-h-[200px]">
-                {isAiLoading && (
-                    <div className="space-y-4">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-[75%]" />
-                    </div>
-                )}
-                {!isAiLoading && recommendations && (
-                    <div className="rounded-xl border border-white/10 bg-background/50 p-4 font-code text-sm leading-relaxed text-muted-foreground" dir="ltr">
-                      <pre className="whitespace-pre-wrap">{recommendations}</pre>
-                    </div>
-                )}
-                {!isAiLoading && !recommendations && (
-                    <EmptyState
-                      title="آماده برای تحلیل"
-                      description='برای شروع، روی دکمه "تولید گزارش" کلیک کنید.'
-                      className="border-none bg-transparent py-8"
-                    />
-                )}
-                </CardContent>
-            </Card>
         </>
         ) : (
             <EmptyState
@@ -378,5 +285,3 @@ export default function ReportsPage() {
     </div>
   );
 }
-
-    

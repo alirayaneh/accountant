@@ -5,7 +5,6 @@ import type { ReactNode } from 'react';
 import { MainSidebar } from '@/components/layout/main-sidebar';
 import { SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { PanelLeft } from 'lucide-react';
-import { FirebaseStatusIndicator } from '@/components/layout/firebase-status-indicator';
 import { GlobalProgressBar } from '@/components/layout/global-progress-bar';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
 import { useAppContext } from '@/components/app-provider';
@@ -87,7 +86,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </main>
           <LicenseBlockOverlay />
           <OfflineStorageBlockOverlay />
-          <FirebaseStatusIndicator />
         </SidebarInset>
       </div>
     </ProtectedRoute>
