@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <style>@page {
+  margin: 2cm;
+}
+
+html {
+  direction: rtl;
+  font-size: 14px;
+}
+
+body {
+  direction: rtl;
+  font-family: "Vazirmatn", "Tahoma", "Arial", sans-serif;
+  line-height: 1.8;
+  color: #1a1a2e;
+  text-align: right;
+}
+
+h1, h2, h3, h4 {
+  color: #0f3460;
+  page-break-after: avoid;
+}
+
+h1 {
+  font-size: 2rem;
+  border-bottom: 3px solid #00d4ff;
+  padding-bottom: 0.5rem;
+}
+
+h2 {
+  font-size: 1.5rem;
+  margin-top: 2rem;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 0.3rem;
+}
+
+h3 {
+  font-size: 1.2rem;
+  margin-top: 1.5rem;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1rem auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  page-break-inside: avoid;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  page-break-inside: avoid;
+}
+
+th, td {
+  border: 1px solid #ccc;
+  padding: 0.5rem 0.75rem;
+  text-align: right;
+}
+
+th {
+  background-color: #0f3460;
+  color: white;
+}
+
+blockquote {
+  border-right: 4px solid #00d4ff;
+  border-left: none;
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  background: #f0f9ff;
+  border-radius: 0 8px 8px 0;
+}
+
+code {
+  background: #f4f4f4;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  font-family: monospace;
+}
+
+hr {
+  border: none;
+  border-top: 2px solid #00d4ff;
+  margin: 2rem 0;
+}
+
+a {
+  color: #0066cc;
+}
+
+ul, ol {
+  padding-right: 1.5rem;
+  padding-left: 0;
+}
+
+li {
+  margin-bottom: 0.4rem;
+}
+
+strong {
+  color: #0f3460;
+}
+</style>
+</head>
+<body><h1>راهنمای حسابدار آنلاین آموزا</h1>
+<p><strong>حسابداری، انبارداری و فروش — در یک نرم‌افزار رایگان</strong></p>
+<hr>
+<h2>مقدمه: چرا فروشندگان به آموزا نیاز دارند؟</h2>
+<p>اگر مغازه دارید، واردکننده هستید یا با چند فروشنده کار می‌کنید، احتمالاً این سناریوها را می‌شناسید:</p>
+<ul>
+<li>قیمت دلار عوض شد و باید <strong>صدها کالا</strong> را دوباره قیمت‌گذاری کنید</li>
+<li>نمی‌دانید <strong>چقدر سود</strong> کردید — فقط می‌دانید «فروش خوب بود»</li>
+<li>مشتری <strong>بدهکار</strong> است ولی یادتان رفت چقدر و کی پرداخت کرد</li>
+<li><strong>اجاره مغازه</strong> و حقوق فروشنده هر ماه تکرار می‌شود ولی ثبتش سخت است</li>
+<li>فیش بانکی و رسید پرداخت <strong>پراکنده</strong> در گوشی یا کاغذ است</li>
+</ul>
+<p><strong>حسابدار آنلاین آموزا</strong> همه این‌ها را در یک جا حل می‌کند: انبار، حسابداری، فروش، مشتری، حقوق کارمند، مخارج دوره‌ای، گزارش زنده — و مهم‌تر از همه: <strong>کاملاً رایگان</strong>.</p>
+<blockquote>
+<p><strong>یک بار امتحان کنید.</strong> ثبت‌نام کمتر از یک دقیقه طول می‌کشد: <a href="https://hesab.amoza.ir">hesab.amoza.ir</a></p>
+</blockquote>
+<hr>
+<h2>نسخه‌ها و دسترسی</h2>
+<table>
+<thead>
+<tr>
+<th>نسخه</th>
+<th>توضیح</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>وب آنلاین</strong></td>
+<td>از هر مرورگر — <a href="https://hesab.amoza.ir">hesab.amoza.ir</a></td>
+</tr>
+<tr>
+<td><strong>دسکتاپ آفلاین</strong></td>
+<td>نصب روی کامپیوتر؛ داده‌ها محلی (SQLite) — بدون اینترنت</td>
+</tr>
+<tr>
+<td><strong>دسکتاپ + آنلاین</strong></td>
+<td>همگام‌سازی با سرور؛ انتخاب در تنظیمات</td>
+</tr>
+<tr>
+<td><strong>کراس‌پلتفرم</strong></td>
+<td><strong>لینوکس، ویندوز، مک</strong></td>
+</tr>
+</tbody></table>
+<h3>سه حالت رنگی</h3>
+<p>در پایین منوی کناری، آیکون ماه/خورشید را بزنید:</p>
+<ul>
+<li><strong>روشن</strong> — برای محیط‌های پرنور</li>
+<li><strong>تاریک</strong> — راحت برای چشم، حرفه‌ای و مدرن</li>
+<li><strong>سیستمی</strong> — هماهنگ با تنظیمات سیستم‌عامل</li>
+</ul>
+<hr>
+<h2>شروع کار</h2>
+<ol>
+<li>به <a href="https://hesab.amoza.ir">hesab.amoza.ir</a> بروید</li>
+<li><strong>ثبت‌نام</strong> کنید (ایمیل و رمز عبور)</li>
+<li>وارد <strong>داشبورد مالی</strong> شوید</li>
+<li>قبل از هر چیز، <strong>تنظیمات اولیه</strong> را انجام دهید (بخش بعد)</li>
+</ol>
+<hr>
+<h2>بخش ۱: تنظیمات اولیه</h2>
+<h3>۱.۱ نرخ‌های ارز — قیمت‌گذاری بدون ماشین‌حساب</h3>
+<p>واردکننده هستید؟ دلار، درهم و یوان را <strong>یک‌بار</strong> وارد کنید؛ بقیه کار را آموزا انجام می‌دهد.</p>
+<p><img src="file:///home/alex/projects/accountant/accountant/docs/user-guide/assets/01-exchange-rates.png" alt="تنظیم نرخ ارز"></p>
+<p><strong>مراحل:</strong></p>
+<ol>
+<li>از منوی راست <strong>تنظیمات</strong> را باز کنید</li>
+<li>تب <strong>نرخ‌های ارز</strong> را انتخاب کنید</li>
+<li>نرخ <strong>دلار، درهم (AED) و یوان (CNY)</strong> را به تومان وارد کنید</li>
+<li><strong>ذخیره نرخ‌ها</strong> را بزنید</li>
+</ol>
+<blockquote>
+<p><strong>نکته:</strong> وقتی بازار ارز تکان خورد، فقط نرخ‌ها را عوض کنید — قیمت فروش تمام محصولات به‌روز می‌شود. نیازی به ویرایش تک‌تک کالاها نیست.</p>
+</blockquote>
+<hr>
+<h3>۱.۲ عناوین هزینه — ردیف‌های آماده برای قیمت‌گذاری</h3>
+<p>قبل از تعریف محصول، <strong>عناوین هزینه</strong> را بسازید: حمل از چین، حمل از دبی، بسته‌بندی، قیمت پایه و ...</p>
+<p><img src="file:///home/alex/projects/accountant/accountant/docs/user-guide/assets/02-cost-titles.png" alt="مدیریت عناوین هزینه"></p>
+<p><strong>مراحل:</strong></p>
+<ol>
+<li><strong>تنظیمات → عناوین هزینه</strong></li>
+<li>عنوان جدید بنویسید (مثلاً «حمل از چین»)</li>
+<li><strong>افزودن</strong> را بزنید</li>
+<li>برای حذف، آیکون سطل زباله را بزنید</li>
+</ol>
+<blockquote>
+<p><strong>نکته:</strong> این عناوین در <strong>افزودن محصول</strong> به‌صورت لیست کشویی ظاهر می‌شوند — هر کالا می‌تواند ترکیب متفاوتی از هزینه‌ها با <strong>ارزهای مختلف</strong> داشته باشد.</p>
+</blockquote>
+<hr>
+<h3>۱.۳ کارمندان — حقوق و دستمزد خودکار</h3>
+<p>فروشنده یا حسابدار دارید؟ یک‌بار تعریف کنید؛ حقوق ماهانه به‌صورت خودکار در مخارج دوره‌ای ثبت می‌شود.</p>
+<p><img src="file:///home/alex/projects/accountant/accountant/docs/user-guide/assets/03-employees.png" alt="مدیریت کارمندان"></p>
+<p><strong>مراحل:</strong></p>
+<ol>
+<li><strong>تنظیمات → کارمندان</strong></li>
+<li>نام، سمت و <strong>حقوق ماهانه (تومان)</strong> را وارد کنید</li>
+<li>(اختیاری) ایمیل و رمز برای <strong>ورود کارمند</strong> به سیستم</li>
+<li><strong>افزودن کارمند</strong> را بزنید</li>
+</ol>
+<blockquote>
+<p><strong>نکته:</strong> با ثبت کارمند، هزینه «حقوق {نام}» به‌صورت خودکار در مخارج دوره‌ای ایجاد می‌شود — دیگر فراموش نمی‌کنید حقوق را در گزارش سود لحاظ کنید.</p>
+</blockquote>
+<hr>
+<h2>بخش ۲: محصول و انبار</h2>
+<h3>۲.۱ افزودن محصول — قیمت‌گذاری چندارزی و هوشمند</h3>
+<p>قلب سیستم: تعریف کالا با <strong>بارکد</strong>، هزینه‌های چندارزی، حاشیه سود و پیش‌نمایش زنده قیمت.</p>
+<p><img src="file:///home/alex/projects/accountant/accountant/docs/user-guide/assets/04-add-product.png" alt="افزودن محصول"></p>
+<p><strong>مراحل:</strong></p>
+<ol>
+<li>از منو <strong>افزودن محصول</strong> را باز کنید</li>
+<li><strong>بارکد (ID)</strong> و <strong>نام محصول</strong> را وارد کنید</li>
+<li><strong>موجودی اولیه</strong> و <strong>آستانه کمبود موجودی</strong> را تنظیم کنید</li>
+<li>در بخش <strong>هزینه‌های محصول</strong>، ردیف اضافه کنید:<ul>
+<li>عنوان (مثلاً حمل از چین) + مبلغ + <strong>ارز</strong> (یوان، درهم، تومان)</li>
+</ul>
+</li>
+<li><strong>حاشیه سود (%)</strong> را وارد کنید</li>
+<li>در پنل <strong>پیش‌نمایش قیمت</strong> سمت چپ، قیمت فروش محاسبه‌شده و هزینه را ببینید</li>
+<li>(اختیاری) تصویر یا ویدیو محصول آپلود کنید</li>
+<li><strong>افزودن محصول</strong> را بزنید</li>
+</ol>
+<blockquote>
+<p><strong>نکته:</strong> بارکد را با <strong>اسکنر</strong> هم می‌توانید وارد کنید — در ثبت فروش هم اسکن مستقیم کار می‌کند.</p>
+</blockquote>
+<hr>
+<h3>۲.۲ موجودی کالا — همه چیز یک‌جا</h3>
+<p><img src="file:///home/alex/projects/accountant/accountant/docs/user-guide/assets/05-inventory.png" alt="موجودی کالا"></p>
+<p><strong>امکانات:</strong></p>
+<ul>
+<li>جستجو با <strong>نام یا بارکد</strong></li>
+<li>نمایش <strong>قیمت فروش، هزینه تمام‌شده، حاشیه سود، موجودی</strong></li>
+<li><strong>هشدار کمبود موجودی</strong> وقتی به آستانه برسد</li>
+<li>ویرایش، حذف و <strong>خروجی CSV</strong> برای آرشیو</li>
+</ul>
+<blockquote>
+<p><strong>نکته:</strong> بعد از هر فروش، موجودی خودکار کم می‌شود — نیازی به به‌روزرسانی دستی نیست.</p>
+</blockquote>
+<hr>
+<h2>بخش ۳: مشتریان</h2>
+<p><img src="file:///home/alex/projects/accountant/accountant/docs/user-guide/assets/06-customers.png" alt="مدیریت مشتریان"></p>
+<p><strong>مراحل:</strong></p>
+<ol>
+<li><strong>مشتریان</strong> را از منوی فروش باز کنید</li>
+<li><strong>افزودن مشتری</strong> — نام، موبایل، آدرس</li>
+<li>در <strong>ثبت فروش</strong> مشتری را انتخاب کنید تا تاریخچه و بدهی ردیابی شود</li>
+</ol>
+<blockquote>
+<p><strong>نکته:</strong> مشتری بدهکار در <strong>تاریخچه فروش</strong> با برچسب قرمز «بدهکار» نمایش داده می‌شود.</p>
+</blockquote>
+<hr>
+<h2>بخش ۴: ثبت فروش (POS)</h2>
+<h3>۴.۱ فروش سریع — مثل صندوق فروشگاه</h3>
+<p><img src="file:///home/alex/projects/accountant/accountant/docs/user-guide/assets/07-record-sale.png" alt="ثبت فروش"></p>
+<p><strong>مراحل:</strong></p>
+<ol>
+<li><strong>ثبت فروش</strong> را باز کنید</li>
+<li>محصول را <strong>جستجو</strong> یا <strong>بارکد اسکن</strong> کنید</li>
+<li>به <strong>سبد خرید</strong> اضافه کنید — تعداد را با +/− تنظیم کنید</li>
+<li>در <strong>خلاصه و پرداخت</strong>، مبلغ کل را ببینید</li>
+<li><strong>پرداخت جدید</strong> ثبت کنید (نقد، کارتخوان، آنلاین)</li>
+<li>(اختیاری) <strong>مشتری</strong> را انتخاب کنید</li>
+<li><strong>تکمیل فروش</strong> را بزنید</li>
+</ol>
+<hr>
+<h3>۴.۲ پرداخت جزئی — باقیمانده خودکار</h3>
+<p><img src="file:///home/alex/projects/accountant/accountant/docs/user-guide/assets/08-record-sale-payment.png" alt="پرداخت جزئی در ثبت فروش"></p>
+<p>مشتری همه را یک‌جا نداد؟ مشکلی نیست:</p>
+<ul>
+<li><strong>پرداخت شده</strong> (سبز) و <strong>باقیمانده</strong> (قرمز) خودکار محاسبه می‌شود</li>
+<li>چند پرداخت با روش‌های مختلف ثبت کنید</li>
+<li>باقیمانده در <strong>گزارش‌ها</strong> به‌عنوان <strong>مطالبات</strong> نمایش داده می‌شود</li>
+</ul>
+<blockquote>
+<p><strong>نکته:</strong> از هر صفحه‌ای با دکمه <strong>ثبت فروش</strong> بالای صفحه می‌توانید سریع فاکتور بزنید.</p>
+</blockquote>
+<hr>
+<h3>۴.۳ اسناد پیوست — فیش بانکی نامحدود</h3>
+<p><img src="file:///home/alex/projects/accountant/accountant/docs/user-guide/assets/09-payment-document.png" alt="افزودن سند برای پرداخت"></p>
+<p>برای هر پرداخت می‌توانید <strong>تعداد نامحدود سند</strong> پیوست کنید:</p>
+<ol>
+<li><strong>افزودن سند</strong> را بزنید</li>
+<li>تاریخ، توضیحات، شماره رسید را وارد کنید</li>
+<li><strong>تصویر فیش</strong> یا رسید را آپلود کنید</li>
+<li><strong>افزودن سند</strong> را تأیید کنید</li>
+</ol>
+<blockquote>
+<p><strong>نکته:</strong> در <strong>تاریخچه فروش</strong> با آیکون گیره کاغذ می‌توانید اسناد هر پرداخت را ببینید — دیگر فیش گم نمی‌شود.</p>
+</blockquote>
+<hr>
+<h2>بخش ۵: پرداخت‌ها</h2>
+<p><img src="file:///home/alex/projects/accountant/accountant/docs/user-guide/assets/10-payments.png" alt="صفحه پرداخت‌ها"></p>
+<p><strong>امکانات:</strong></p>
+<ul>
+<li>لیست تمام پرداخت‌های مشتریان</li>
+<li>فیلتر بر اساس <strong>تاریخ، روش پرداخت، جستجو</strong></li>
+<li>ثبت <strong>پرداخت مستقل</strong> (بدون فاکتور فروش)</li>
+<li>پیوست سند، ویرایش و حذف</li>
+</ul>
+<p><strong>روش‌های پرداخت:</strong> نقد | کارتخوان | آنلاین</p>
+<hr>
+<h2>بخش ۶: مخارج — لحظه‌ای و دوره‌ای</h2>
+<p><img src="file:///home/alex/projects/accountant/accountant/docs/user-guide/assets/11-expenses.png" alt="مخارج لحظه‌ای و دوره‌ای"></p>
+<h3>مخارج لحظه‌ای</h3>
+<p>خرید لپ‌تاپ، تعمیرات، هزینه‌های یک‌بار — با تاریخ، مبلغ و پیوست رسید.</p>
+<h3>مخارج دوره‌ای (اجاره مغازه و ...)</h3>
+<ol>
+<li>در پنل <strong>تعریف هزینه دوره‌ای</strong>:<ul>
+<li>عنوان (مثلاً اجاره مغازه)</li>
+<li>مبلغ</li>
+<li>دوره: <strong>ماهانه</strong> یا <strong>سالانه</strong></li>
+<li>تاریخ اولین پرداخت</li>
+</ul>
+</li>
+<li><strong>افزودن هزینه دوره‌ای</strong> را بزنید</li>
+</ol>
+<blockquote>
+<p><strong>نکته:</strong> مخارج دوره‌ای <strong>خودکار</strong> در گزارش سود لحاظ می‌شوند — اجاره هر ماه دوباره ثبت نکنید.</p>
+</blockquote>
+<hr>
+<h2>بخش ۷: داشبورد مالی</h2>
+<p><img src="file:///home/alex/projects/accountant/accountant/docs/user-guide/assets/12-dashboard.png" alt="داشبورد مالی"></p>
+<p><strong>نمای کلی ماه جاری:</strong></p>
+<table>
+<thead>
+<tr>
+<th>کارت</th>
+<th>معنی</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>فروش ماه جاری</strong></td>
+<td>مجموع فروش</td>
+</tr>
+<tr>
+<td><strong>مخارج ماه جاری</strong></td>
+<td>هزینه‌های ثبت‌شده</td>
+</tr>
+<tr>
+<td><strong>سود خالص</strong></td>
+<td>فروش منهای مخارج (با علامت مثبت/منفی)</td>
+</tr>
+<tr>
+<td><strong>تعداد فاکتور</strong></td>
+<td>چند فروش انجام شده</td>
+</tr>
+</tbody></table>
+<p><strong>همچنین:</strong></p>
+<ul>
+<li><strong>دسترسی سریع</strong> — ثبت فروش، افزودن محصول، مخارج، گزارش‌ها</li>
+<li><strong>نمودار فروش ۷ روز گذشته</strong></li>
+<li><strong>آخرین فروش‌ها</strong> — جدول زنده</li>
+<li><strong>هشدار کمبود موجودی</strong></li>
+</ul>
+<hr>
+<h2>بخش ۸: گزارش‌ها و نمودارهای زنده</h2>
+<p><img src="file:///home/alex/projects/accountant/accountant/docs/user-guide/assets/13-reports.png" alt="گزارش‌ها"></p>
+<p><strong>فیلتر بازه زمانی:</strong> هفته جاری/گذشته، ماه جاری/گذشته، سال جاری/گذشته، کل بازه</p>
+<p><strong>شاخص‌ها:</strong></p>
+<ul>
+<li>مجموع فروش</li>
+<li>سود ناخالص</li>
+<li>مجموع مخارج</li>
+<li><strong>سود خالص</strong></li>
+<li><strong>مطالبات</strong> (بدهی مشتریان)</li>
+</ul>
+<p><strong>نمودار جامع:</strong> فروش (فیروزه‌ای)، سود خالص (بنفش)، مخارج (قرمز)</p>
+<hr>
+<h2>بخش ۹: تاریخچه فروش</h2>
+<p><img src="file:///home/alex/projects/accountant/accountant/docs/user-guide/assets/14-sales-history.png" alt="تاریخچه فروش"></p>
+<ul>
+<li>جستجو در فروش، مشتری، محصول، پرداخت و سند</li>
+<li>جزئیات هر فاکتور: <strong>اقلام، پرداخت‌ها، اسناد</strong></li>
+<li>وضعیت <strong>بدهکار/تسویه</strong></li>
+<li>صفحه‌بندی برای حجم بالا</li>
+</ul>
+<hr>
+<h2>بخش ۱۰: دستیار هوشمند انبار</h2>
+<p><img src="file:///home/alex/projects/accountant/accountant/docs/user-guide/assets/15-ai-assistant.png" alt="دستیار هوشمند انبار"></p>
+<p>در صفحه <strong>گزارش‌ها</strong>، بخش <strong>دستیار هوشمند انبار</strong>:</p>
+<ol>
+<li><strong>تولید گزارش</strong> را بزنید</li>
+<li>پیشنهادهای هوشمند درباره <strong>وضعیت انبار و فروش</strong> دریافت کنید</li>
+<li>تصمیم بگیرید چه بخرید، چه تخفیف بدهید، چه کالایی کم است</li>
+</ol>
+<blockquote>
+<p><strong>نکته:</strong> این قابلیت از هوش مصنوعی برای تحلیل داده‌های واقعی مغازه شما استفاده می‌کند — مثل یک مشاور که هر روز کنار شماست.</p>
+</blockquote>
+<hr>
+<h2>خلاصه امکانات</h2>
+<table>
+<thead>
+<tr>
+<th>حوزه</th>
+<th>امکانات</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>انبارداری</strong></td>
+<td>بارکد، موجودی، هشدار کمبود، CSV</td>
+</tr>
+<tr>
+<td><strong>حسابداری</strong></td>
+<td>فروش، مخارج، سود، مطالبات</td>
+</tr>
+<tr>
+<td><strong>چندارزی</strong></td>
+<td>USD, AED, CNY → تومان + ردیف هزینه per محصول</td>
+</tr>
+<tr>
+<td><strong>فروش</strong></td>
+<td>POS، پرداخت جزئی، چند روش پرداخت</td>
+</tr>
+<tr>
+<td><strong>مشتری</strong></td>
+<td>CRM ساده، ردیابی بدهی</td>
+</tr>
+<tr>
+<td><strong>کارمند</strong></td>
+<td>حقوق خودکار، ورود جداگانه</td>
+</tr>
+<tr>
+<td><strong>مخارج</strong></td>
+<td>لحظه‌ای + دوره‌ای (اجاره، حقوق)</td>
+</tr>
+<tr>
+<td><strong>اسناد</strong></td>
+<td>پیوست نامحدود به پرداخت</td>
+</tr>
+<tr>
+<td><strong>گزارش</strong></td>
+<td>داشبورد زنده + نمودار + AI</td>
+</tr>
+<tr>
+<td><strong>پلتفرم</strong></td>
+<td>وب + دسکتاپ (Linux/Win/Mac)</td>
+</tr>
+<tr>
+<td><strong>قیمت</strong></td>
+<td><strong>رایگان</strong></td>
+</tr>
+<tr>
+<td><strong>تم</strong></td>
+<td>روشن / تاریک / سیستمی</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>شروع کنید — همین الان</h2>
+<ol>
+<li>بروید به <strong><a href="https://hesab.amoza.ir">hesab.amoza.ir</a></strong></li>
+<li><strong>ثبت‌نام رایگان</strong></li>
+<li><strong>نرخ ارز</strong> و <strong>عناوین هزینه</strong> را تنظیم کنید</li>
+<li><strong>اولین محصول</strong> را اضافه کنید</li>
+<li><strong>اولین فروش</strong> را ثبت کنید</li>
+<li><strong>داشبورد</strong> را ببینید — سود واقعی‌تان آنجاست</li>
+</ol>
+<blockquote>
+<p><strong>یک بار امتحان کنید.</strong> اگر مغازه دارید، آموزا همان ابزاری است که سال‌ها دنبالش بودید — و رایگان است.</p>
+</blockquote>
+<hr>
+<p><em>نسخه ۱.۰ — حسابدار آنلاین آموزا — <a href="https://hesab.amoza.ir">hesab.amoza.ir</a></em></p>
+</body>
+</html>

@@ -26,6 +26,7 @@ import licenseRoutes from './routes/license';
 import adminRoutes from './routes/admin';
 import licenseIssuerRoutes from './routes/license-issuer';
 import userLicenseRoutes from './routes/licenses';
+import desktopRoutes from './routes/desktop';
 import { isServerDeployment } from './utils/deployment';
 
 // Load environment variables
@@ -138,9 +139,25 @@ function mountFrontendAssets() {
 }
 
 // Middleware
+function isAllowedCorsOrigin(origin: string | undefined): boolean {
+    if (!origin) return true;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:9002';
+    if (origin === frontendUrl) return true;
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return true;
+    return false;
+}
+
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:9002',
-    credentials: true
+    origin: (origin, callback) => {
+        if (isAllowedCorsOrigin(origin)) {
+            callback(null, true);
+        } else {
+            callback(null, false);
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Desktop-License'],
 }));
 
 app.use(express.json({ limit: '50mb' }));
@@ -185,6 +202,7 @@ if (isServerDeployment()) {
     app.use('/api/admin', adminRoutes);
     app.use('/api/v1/licenses', licenseIssuerRoutes);
     app.use('/api/licenses', userLicenseRoutes);
+    app.use('/api/desktop', desktopRoutes);
 } else if (process.env.LICENSE_ENABLED === 'true' && process.env.DB_TYPE !== 'mysql') {
     app.use('/api/license', licenseRoutes);
 }

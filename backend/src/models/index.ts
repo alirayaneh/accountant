@@ -18,6 +18,8 @@ import License from './License';
 import LicenseActivation from './LicenseActivation';
 import LandingPost from './LandingPost';
 import LandingSettings from './LandingSettings';
+import DesktopNotification from './DesktopNotification';
+import DesktopRelease from './DesktopRelease';
 
 const models = {
     Product,
@@ -38,6 +40,8 @@ const models = {
     LicenseActivation,
     LandingPost,
     LandingSettings,
+    DesktopNotification,
+    DesktopRelease,
 };
 
 const TENANT_TABLES = [
@@ -253,7 +257,9 @@ export {
     License,
     LicenseActivation,
     LandingPost,
-    LandingSettings
+    LandingSettings,
+    DesktopNotification,
+    DesktopRelease
 };
 
 export default models;
