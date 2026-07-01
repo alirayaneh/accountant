@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getRemoteApiURL } from '@/lib/api-url';
+import { getStorageApiURL } from '@/lib/storage-mode';
+import type { StorageType } from '@/lib/storage-types';
 
 export type NetworkStatus = 'online' | 'server_unreachable' | 'offline';
 
-export function useNetworkStatus() {
+export function useNetworkStatus(storageType: StorageType = 'sqlite') {
   const [browserOnline, setBrowserOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
@@ -38,7 +39,7 @@ export function useNetworkStatus() {
       try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 8000);
-        const res = await fetch(`${getRemoteApiURL()}/health`, {
+        const res = await fetch(`${getStorageApiURL(storageType)}/health`, {
           signal: controller.signal,
           cache: 'no-store',
         });
@@ -59,7 +60,7 @@ export function useNetworkStatus() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [browserOnline]);
+  }, [browserOnline, storageType]);
 
   let status: NetworkStatus = 'offline';
   if (browserOnline && serverReachable === true) {

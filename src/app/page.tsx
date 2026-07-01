@@ -123,7 +123,7 @@ function AuthForms({
 }
 
 export default function LoginPage() {
-  const { user, authLoading, storageType } = useAppContext();
+  const { user, authLoading, storageType, completeLogin } = useAppContext();
   const router = useRouter();
   const { toast } = useToast();
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -148,10 +148,9 @@ export default function LoginPage() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'ورود ناموفق بود');
-      localStorage.setItem('apiToken', data.token);
+      completeLogin(data.token, data.user);
       toast({ title: 'ورود موفق', description: 'به سیستم خوش آمدید' });
       router.push('/dashboard');
-      window.location.reload();
     } catch (error: unknown) {
       toast({
         variant: 'destructive',
@@ -175,10 +174,9 @@ export default function LoginPage() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'ثبت نام ناموفق بود');
-      localStorage.setItem('apiToken', data.token);
+      completeLogin(data.token, data.user);
       toast({ title: 'ثبت نام موفق', description: 'حساب کاربری شما ایجاد شد' });
       router.push('/dashboard');
-      window.location.reload();
     } catch (error: unknown) {
       toast({
         variant: 'destructive',
@@ -202,7 +200,7 @@ export default function LoginPage() {
     <div className="min-h-screen">
       {IS_ELECTRON_BUILD && (
         <div className="flex items-center justify-end border-b border-white/10 bg-background/80 px-4 py-2 backdrop-blur-xl">
-          <DesktopStatusBar />
+          <DesktopStatusBar showStorageSwitch />
         </div>
       )}
       <div className="flex min-h-screen">

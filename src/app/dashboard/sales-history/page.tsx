@@ -34,7 +34,7 @@ import { formatPersianDate } from '@/lib/date-utils';
 import { PageHeader } from '@/components/layout/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { IS_ELECTRON_BUILD } from '@/lib/build-config';
-import { _checkModuleedf655 } from '@/lib/license/gates/sales-history';
+import { _guardModuleffd1e2 } from '@/lib/license/gates/sales-history';
 
 
 const paymentMethodLabels: Record<PaymentMethod, string> = {
@@ -135,7 +135,7 @@ export default function SalesHistoryPage() {
 
   useEffect(() => {
     if (!IS_ELECTRON_BUILD) return;
-    _checkModuleedf655().catch(() => {});
+    _guardModuleffd1e2().catch(() => {});
   }, []);
 
   useEffect(() => {

@@ -51,7 +51,7 @@ import { useAppContext } from '@/components/app-provider';
 import { PageHeader } from '@/components/layout/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { IS_ELECTRON_BUILD } from '@/lib/build-config';
-import { _resolveModulea63d45 } from '@/lib/license/gates/customers';
+import { _checkModule2b2176 } from '@/lib/license/gates/customers';
 
 const customerSchema = z.object({
   name: z.string().min(1, 'نام مشتری الزامی است'),
@@ -229,7 +229,7 @@ export default function CustomersPage() {
 
   useEffect(() => {
     if (!IS_ELECTRON_BUILD) return;
-    _resolveModulea63d45().catch(() => {});
+    _checkModule2b2176().catch(() => {});
   }, []);
 
   const fetchCustomers = async () => {

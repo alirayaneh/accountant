@@ -700,6 +700,10 @@ function StorageSettingsForm() {
 
   const confirmStorageChange = () => {
     const option = storageOptions.find(o => o.value === pendingStorageType);
+    if (pendingStorageType !== storageType) {
+      localStorage.removeItem('apiToken');
+      localStorage.removeItem('originalAdminToken');
+    }
     changeStorageType(pendingStorageType);
     toast({
       title: 'محل ذخیره‌سازی تغییر کرد',

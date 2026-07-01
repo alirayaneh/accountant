@@ -50,7 +50,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { PageHeader } from '@/components/layout/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { IS_ELECTRON_BUILD } from '@/lib/build-config';
-import { _validateModule815d4c } from '@/lib/license/gates/payments';
+import { _resolveModule532670 } from '@/lib/license/gates/payments';
 import {
   Select,
   SelectContent,
@@ -683,7 +683,7 @@ export default function PaymentsPage() {
 
   useEffect(() => {
     if (!IS_ELECTRON_BUILD) return;
-    _validateModule815d4c().catch(() => {});
+    _resolveModule532670().catch(() => {});
   }, []);
 
   const fetchPayments = async () => {

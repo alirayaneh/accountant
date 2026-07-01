@@ -17,7 +17,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { StatCard } from '@/components/ui/stat-card';
 import { formatToman } from '@/lib/format';
 import { IS_ELECTRON_BUILD } from '@/lib/build-config';
-import { _validateModule12b00e } from '@/lib/license/gates/products-detail';
+import { _validateModule7de3be } from '@/lib/license/gates/products-detail';
 
 function ProductProfileContent() {
   const searchParams = useSearchParams();
@@ -32,7 +32,7 @@ function ProductProfileContent() {
 
   useEffect(() => {
     if (!IS_ELECTRON_BUILD) return;
-    _validateModule12b00e().catch(() => {});
+    _validateModule7de3be().catch(() => {});
   }, []);
 
   useEffect(() => {

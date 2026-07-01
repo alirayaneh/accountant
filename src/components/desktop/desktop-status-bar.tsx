@@ -2,12 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import { useAppContext } from '@/components/app-provider';
-import { IS_ELECTRON_BUILD } from '@/lib/build-config';
+import { IS_ELECTRON_BUILD, ALLOWED_STORAGE_TYPES } from '@/lib/build-config';
 import { useNetworkStatus } from '@/hooks/use-network-status';
 import { useDesktopNotifications } from '@/lib/desktop/notifications';
 import { useDesktopUpdateCheck } from '@/lib/desktop/update-check';
+import { useToast } from '@/hooks/use-toast';
+import { testStorageHealth } from '@/lib/storage-mode';
+import type { StorageType } from '@/lib/storage-types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import {
   Tooltip,
   TooltipContent,
@@ -61,13 +66,22 @@ function getNetworkColor(status: ReturnType<typeof useNetworkStatus>['status']) 
   }
 }
 
-export function DesktopStatusBar({ className }: { className?: string }) {
-  const { storageType } = useAppContext();
-  const { status, isOnline } = useNetworkStatus();
+export function DesktopStatusBar({
+  className,
+  showStorageSwitch = false,
+}: {
+  className?: string;
+  showStorageSwitch?: boolean;
+}) {
+  const { storageType, changeStorageType, isStorageConfigurable } = useAppContext();
+  const { status, isOnline } = useNetworkStatus(storageType);
+  const { toast } = useToast();
   const { data: notifications, markAllRead, markRead } = useDesktopNotifications(isOnline);
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const { updateInfo, updateAvailable } = useDesktopUpdateCheck(isOnline, appVersion);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+  const [storagePopoverOpen, setStoragePopoverOpen] = useState(false);
+  const [isSwitchingStorage, setIsSwitchingStorage] = useState(false);
 
   useEffect(() => {
     if (!IS_ELECTRON_BUILD) return;
@@ -89,6 +103,39 @@ export function DesktopStatusBar({ className }: { className?: string }) {
     }
   };
 
+  const canSwitchStorage = showStorageSwitch
+    && isStorageConfigurable
+    && ALLOWED_STORAGE_TYPES.includes('sqlite')
+    && ALLOWED_STORAGE_TYPES.includes('online');
+
+  const handleStorageModeChange = async (checked: boolean) => {
+    const nextType: StorageType = checked ? 'online' : 'sqlite';
+    if (nextType === storageType || isSwitchingStorage) {
+      return;
+    }
+
+    setIsSwitchingStorage(true);
+    try {
+      await testStorageHealth(nextType);
+      changeStorageType(nextType);
+      toast({
+        title: 'محل ذخیره‌سازی تغییر کرد',
+        description: nextType === 'online'
+          ? 'از این پس به سرور آنلاین متصل می‌شوید.'
+          : 'از این پس داده‌ها به‌صورت محلی ذخیره می‌شوند.',
+      });
+      setStoragePopoverOpen(false);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'تغییر محل ذخیره‌سازی ناموفق بود',
+        description: error instanceof Error ? error.message : 'اتصال به محل ذخیره‌سازی برقرار نشد.',
+      });
+    } finally {
+      setIsSwitchingStorage(false);
+    }
+  };
+
   return (
     <TooltipProvider delayDuration={200}>
       <div className={cn('flex items-center gap-2', className)}>
@@ -104,16 +151,57 @@ export function DesktopStatusBar({ className }: { className?: string }) {
             </TooltipContent>
           </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7">
-                <StorageIcon className="h-3.5 w-3.5 text-muted-foreground" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <p>{storageLabel}</p>
-            </TooltipContent>
-          </Tooltip>
+          {canSwitchStorage ? (
+            <Popover open={storagePopoverOpen} onOpenChange={setStoragePopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7" title={storageLabel}>
+                  <StorageIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-72">
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm font-medium">محل ذخیره‌سازی</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      بین نسخه آفلاین محلی و سرور آنلاین جابه‌جا شوید.
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-muted/20 px-3 py-2.5">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="desktop-storage-switch" className="text-sm">
+                        {storageType === 'online' ? 'آنلاین (سرور)' : 'آفلاین (محلی)'}
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        {storageType === 'online'
+                          ? 'داده‌ها روی سرور ذخیره می‌شوند'
+                          : 'داده‌ها روی دستگاه شما ذخیره می‌شوند'}
+                      </p>
+                    </div>
+                    <Switch
+                      id="desktop-storage-switch"
+                      checked={storageType === 'online'}
+                      disabled={isSwitchingStorage}
+                      onCheckedChange={handleStorageModeChange}
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    با تغییر حالت، نشست فعلی پاک می‌شود و باید دوباره وارد شوید.
+                  </p>
+                </div>
+              </PopoverContent>
+            </Popover>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7">
+                  <StorageIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>{storageLabel}</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
 
           <Popover>
             <Tooltip>

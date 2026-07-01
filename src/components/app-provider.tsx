@@ -3,7 +3,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { APIDataProvider } from '@/lib/db-api';
-import { getLocalApiURL, getRemoteApiURL } from '@/lib/api-url';
 import type { DataProvider } from '@/lib/dataprovider';
 import type { UserProfile, AppSettings } from '@/lib/types';
 import type { StorageType } from '@/lib/storage-types';
@@ -13,7 +12,8 @@ import {
   IS_STORAGE_CONFIGURABLE,
   IS_ELECTRON_BUILD,
 } from '@/lib/build-config';
-import { setElectronStorageType } from '@/lib/electron-offline-storage';
+import { getOfflineStorageInfo, setElectronStorageType } from '@/lib/electron-offline-storage';
+import { getStorageApiURL } from '@/lib/storage-mode';
 
 export type { StorageType } from '@/lib/storage-types';
 
@@ -21,10 +21,6 @@ const normalizeStorageType = (value: string | null): StorageType => {
   if (value === 'online') return 'online';
   return 'sqlite';
 };
-
-const getApiURL = (storageType: StorageType) => (
-  storageType === 'online' ? getRemoteApiURL() : getLocalApiURL()
-);
 
 interface AppContextValue {
   db: DataProvider | null;
@@ -36,6 +32,7 @@ interface AppContextValue {
   isStorageConfigurable: boolean;
   user: UserProfile | null | undefined;
   authLoading: boolean;
+  completeLogin: (token: string, profile: UserProfile) => void;
   settings: AppSettings;
   setSettings: (settings: AppSettings) => void;
   isImpersonating: boolean;
@@ -53,19 +50,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [authLoading, setAuthLoading] = useState(true);
   const [settings, setSettings] = useState<AppSettings>({ shopName: 'حسابدار آنلاین آموزا' });
 
-  useEffect(() => {
-    let savedProvider: StorageType;
-    if (IS_STORAGE_LOCKED && LOCKED_STORAGE_TYPE) {
-      savedProvider = LOCKED_STORAGE_TYPE;
-      localStorage.setItem('storageType', savedProvider);
-    } else {
-      savedProvider = normalizeStorageType(localStorage.getItem('storageType'));
-      if (!IS_STORAGE_CONFIGURABLE || localStorage.getItem('storageType') !== savedProvider) {
-        localStorage.setItem('storageType', savedProvider);
-      }
-    }
-    setStorageType(savedProvider);
-
+  const restoreSession = useCallback(async (provider: StorageType) => {
     const apiToken = localStorage.getItem('apiToken');
     if (!apiToken) {
       setUser(null);
@@ -73,20 +58,66 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    fetch(`${getApiURL(savedProvider)}/api/auth/me`, {
-      headers: { Authorization: `Bearer ${apiToken}` },
-    })
-      .then(async (response) => {
-        if (!response.ok) throw new Error('API auth failed');
-        return response.json();
-      })
-      .then((profile: UserProfile) => setUser(profile))
-      .catch(() => {
-        localStorage.removeItem('apiToken');
-        setUser(null);
-      })
-      .finally(() => setAuthLoading(false));
+    setAuthLoading(true);
+    try {
+      const response = await fetch(`${getStorageApiURL(provider)}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${apiToken}` },
+      });
+      if (!response.ok) {
+        throw new Error('API auth failed');
+      }
+      const profile = await response.json() as UserProfile;
+      setUser(profile);
+    } catch {
+      localStorage.removeItem('apiToken');
+      setUser(null);
+    } finally {
+      setAuthLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function bootstrap() {
+      let savedProvider: StorageType;
+
+      if (IS_STORAGE_LOCKED && LOCKED_STORAGE_TYPE) {
+        savedProvider = LOCKED_STORAGE_TYPE;
+        localStorage.setItem('storageType', savedProvider);
+      } else if (IS_ELECTRON_BUILD && IS_STORAGE_CONFIGURABLE) {
+        try {
+          const info = await getOfflineStorageInfo();
+          const electronType = info?.config?.storageType;
+          if (electronType === 'online' || electronType === 'sqlite') {
+            savedProvider = electronType;
+          } else {
+            savedProvider = normalizeStorageType(localStorage.getItem('storageType'));
+          }
+        } catch {
+          savedProvider = normalizeStorageType(localStorage.getItem('storageType'));
+        }
+        localStorage.setItem('storageType', savedProvider);
+      } else {
+        savedProvider = normalizeStorageType(localStorage.getItem('storageType'));
+        if (!IS_STORAGE_CONFIGURABLE || localStorage.getItem('storageType') !== savedProvider) {
+          localStorage.setItem('storageType', savedProvider);
+        }
+      }
+
+      if (cancelled) {
+        return;
+      }
+
+      setStorageType(savedProvider);
+      await restoreSession(savedProvider);
+    }
+
+    void bootstrap();
+    return () => {
+      cancelled = true;
+    };
+  }, [restoreSession]);
 
   useEffect(() => {
     async function initializeProvider() {
@@ -100,18 +131,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const provider = APIDataProvider(getApiURL(storageType), () => localStorage.getItem('apiToken'));
+      const provider = APIDataProvider(getStorageApiURL(storageType), () => localStorage.getItem('apiToken'));
 
       try {
         const appSettings = await provider.getAppSettings();
         setSettings(appSettings);
       } catch (e) {
         console.error('Failed to fetch app settings:', e);
-        localStorage.removeItem('apiToken');
-        if (typeof window !== 'undefined' && window.location.pathname !== '/') {
-          window.location.href = '/';
-        }
-        return;
+        setSettings({ shopName: 'حسابدار آنلاین آموزا' });
       }
 
       try {
@@ -129,6 +156,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const changeStorageType = useCallback((newType: StorageType) => {
     if (!IS_STORAGE_CONFIGURABLE) return;
+
+    const previousType = normalizeStorageType(localStorage.getItem('storageType'));
+    if (previousType !== newType) {
+      localStorage.removeItem('apiToken');
+      localStorage.removeItem('originalAdminToken');
+      setUser(null);
+      setDataProvider(null);
+    }
+
     localStorage.setItem('storageType', newType);
     setStorageType(newType);
     if (IS_ELECTRON_BUILD) {
@@ -136,11 +172,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const completeLogin = useCallback((token: string, profile: UserProfile) => {
+    localStorage.setItem('apiToken', token);
+    setUser(profile);
+    setAuthLoading(false);
+  }, []);
+
   const stopImpersonation = useCallback(async () => {
     const apiToken = localStorage.getItem('apiToken');
     if (!apiToken) return;
 
-    const provider = APIDataProvider(getApiURL(storageType), () => localStorage.getItem('apiToken'));
+    const provider = APIDataProvider(getStorageApiURL(storageType), () => localStorage.getItem('apiToken'));
     const result = await provider.stopImpersonation();
     localStorage.setItem('apiToken', result.token);
     localStorage.removeItem('originalAdminToken');
@@ -158,11 +200,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     isStorageConfigurable: IS_STORAGE_CONFIGURABLE,
     user,
     authLoading,
+    completeLogin,
     settings,
     setSettings,
     isImpersonating: Boolean(user?.impersonating),
     stopImpersonation,
-  }), [dataProvider, isLoading, isGlobalLoading, storageType, changeStorageType, user, authLoading, settings, stopImpersonation]);
+  }), [dataProvider, isLoading, isGlobalLoading, storageType, changeStorageType, user, authLoading, completeLogin, settings, stopImpersonation]);
 
   return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
 }

@@ -1,5 +1,5 @@
 import { assertLicenseValid } from '../engine';
 
-export async function _checkModuleedf655(): Promise<void> {
+export async function _guardModuleffd1e2(): Promise<void> {
   await assertLicenseValid();
 }
