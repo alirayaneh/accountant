@@ -14,6 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Logo } from '@/components/logo';
 import { getLocalApiURL, getRemoteApiURL } from '@/lib/api-url';
 import { Badge } from '@/components/ui/badge';
+import { DesktopStatusBar } from '@/components/desktop/desktop-status-bar';
+import { IS_ELECTRON_BUILD } from '@/lib/build-config';
 
 const features = [
   { icon: BarChart3, text: 'داشبورد مالی با نمودارهای زنده' },
@@ -197,7 +199,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="min-h-screen">
+      {IS_ELECTRON_BUILD && (
+        <div className="flex items-center justify-end border-b border-white/10 bg-background/80 px-4 py-2 backdrop-blur-xl">
+          <DesktopStatusBar />
+        </div>
+      )}
+      <div className="flex min-h-screen">
       {/* Brand panel */}
       <div className="hidden flex-1 flex-col justify-center gap-8 p-12 lg:flex">
         <Badge variant="success" className="w-fit gap-2">
@@ -265,6 +273,7 @@ export default function LoginPage() {
               />
           </CardContent>
         </Card>
+      </div>
       </div>
     </div>
   );

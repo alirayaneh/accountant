@@ -131,3 +131,66 @@ export interface UserProfile {
     impersonating?: boolean;
     impersonatorId?: string;
 }
+
+export interface LandingPostLink {
+    label: string;
+    url: string;
+}
+
+export interface LandingPost {
+    id: string;
+    title: string;
+    description: string;
+    badge?: string;
+    previewUrl: string;
+    previewType: 'image' | 'video';
+    body?: string;
+    bodyMediaUrl?: string;
+    bodyMediaType?: 'image' | 'video';
+    tags: string[];
+    links: LandingPostLink[];
+    sortOrder: number;
+    isPublished: boolean;
+    createdAt?: string;
+    updatedAt?: string;
+}
+
+export interface LandingContact {
+    type: 'telegram' | 'phone' | 'email' | 'website' | 'custom';
+    label: string;
+    value: string;
+    href?: string;
+}
+
+export interface LandingSettings {
+    sectionTitle: string;
+    contacts: LandingContact[];
+}
+
+export interface LandingContent {
+    posts: LandingPost[];
+    settings: LandingSettings;
+}
+
+export interface DesktopNotification {
+    id: string;
+    title: string;
+    body: string;
+    severity: 'info' | 'warning' | 'critical';
+    publishedAt: string;
+    isRead?: boolean;
+}
+
+export interface DesktopNotificationsResponse {
+    notifications: DesktopNotification[];
+    unreadCount: number;
+}
+
+export interface DesktopUpdateCheckResponse {
+    updateAvailable: boolean;
+    currentVersion: string;
+    latestVersion: string;
+    downloadUrl?: string;
+    releaseNotes?: string;
+    mandatory?: boolean;
+}

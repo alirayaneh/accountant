@@ -242,6 +242,15 @@ const startServer = async () => {
             });
         });
 
+        const dbType = process.env.DB_TYPE || 'sqlite';
+        if (dbType === 'sqlite') {
+            const sqlitePath = path.resolve(process.env.SQLITE_PATH || './database.sqlite');
+            if (process.env.SQLITE_REQUIRE_EXISTS === 'true' && !fs.existsSync(sqlitePath)) {
+                console.error(`SQLite database file is missing: ${sqlitePath}`);
+                process.exit(1);
+            }
+        }
+
         // Sync database
         await syncDatabase();
         console.log('✓ Database synced successfully');

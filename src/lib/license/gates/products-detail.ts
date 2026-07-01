@@ -1,5 +1,5 @@
 import { assertLicenseValid } from '../engine';
 
-export async function validateItemViewRights(): Promise<void> {
+export async function _validateModulecfff4a(): Promise<void> {
   await assertLicenseValid();
 }

@@ -325,4 +325,44 @@ router.delete('/', async (_req: Request, res: Response) => {
     }
 });
 
+function isLocalRequest(req: Request): boolean {
+    const addr = req.socket?.remoteAddress || req.ip || '';
+    return (
+        addr === '127.0.0.1' ||
+        addr === '::1' ||
+        addr === '::ffff:127.0.0.1' ||
+        addr.endsWith('127.0.0.1')
+    );
+}
+
+router.get('/desktop-credentials', async (req: Request, res: Response) => {
+    try {
+        if (!isLocalRequest(req)) {
+            return res.status(403).json({ error: 'Local access only' });
+        }
+
+        let row = await getOrCreateLicenseRow();
+        row = await refreshLicenseIfDue(row);
+        const status = await buildStatusResponse(row);
+
+        if (!status.valid || !row.licenseId || !row.validationToken) {
+            return res.status(403).json({ error: 'No active license' });
+        }
+
+        const payload = {
+            license_id: row.licenseId,
+            validation_token: row.validationToken,
+            machine_id: getMachineId(),
+            product_id: getProductId(),
+            app_version: getAppVersion(),
+        };
+
+        const credentials = Buffer.from(JSON.stringify(payload)).toString('base64');
+        res.json({ credentials });
+    } catch (error) {
+        console.error('Desktop credentials error:', error);
+        res.status(500).json({ error: 'Failed to get desktop credentials' });
+    }
+});
+
 export default router;

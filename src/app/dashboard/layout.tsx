@@ -15,6 +15,8 @@ import { Logo } from '@/components/logo';
 import { ThemeSwitcher } from '@/components/layout/theme-switcher';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LicenseBlockOverlay } from '@/components/license/license-block-overlay';
+import { OfflineStorageBlockOverlay } from '@/components/offline-storage/offline-storage-block-overlay';
+import { DesktopStatusBar } from '@/components/desktop/desktop-status-bar';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle } from 'lucide-react';
 
@@ -67,19 +69,24 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           )}
           <header className="sticky top-0 z-10 hidden items-center justify-between border-b border-white/10 bg-background/80 px-6 py-3 backdrop-blur-xl md:flex">
             <Logo>{settings.shopName || 'حسابدار آنلاین آموزا'}</Logo>
-            <ThemeSwitcher />
+            <div className="flex items-center gap-3">
+              <DesktopStatusBar />
+              <ThemeSwitcher />
+            </div>
           </header>
           <header className="flex items-center justify-between border-b border-white/10 p-4 md:hidden">
               <SidebarTrigger>
                   <PanelLeft className="h-6 w-6" />
               </SidebarTrigger>
               <Logo>{settings.shopName || 'حسابدار آنلاین آموزا'}</Logo>
+              <DesktopStatusBar />
           </header>
           <GlobalProgressBar />
           <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
             <DashboardShell>{children}</DashboardShell>
           </main>
           <LicenseBlockOverlay />
+          <OfflineStorageBlockOverlay />
           <FirebaseStatusIndicator />
         </SidebarInset>
       </div>

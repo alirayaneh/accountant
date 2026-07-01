@@ -27,6 +27,15 @@ export const NODE_OBFUSCATION_OPTIONS = {
   unicodeEscapeSequence: false,
 };
 
+/** Slightly lighter settings for browser / Next.js chunks (webpack compatibility). */
+export const CLIENT_OBFUSCATION_OPTIONS = {
+  ...NODE_OBFUSCATION_OPTIONS,
+  controlFlowFlatteningThreshold: 0.25,
+  stringArrayThreshold: 0.6,
+  stringArrayEncoding: ['rc4'],
+  transformObjectKeys: false,
+};
+
 export function obfuscateCode(source, options = NODE_OBFUSCATION_OPTIONS) {
   return JavaScriptObfuscator.obfuscate(source, options).getObfuscatedCode();
 }

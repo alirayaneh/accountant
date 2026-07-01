@@ -66,7 +66,7 @@ import { getProductCover, getProductMedia, withLegacyImageUrl } from '@/lib/prod
 import { PageHeader } from '@/components/layout/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { IS_ELECTRON_BUILD } from '@/lib/build-config';
-import { verifyWarehouseModule } from '@/lib/license/gates/inventory';
+import { _ensureModule12f7ca } from '@/lib/license/gates/inventory';
 
 const mediaSchema = z.object({
   id: z.string(),
@@ -454,7 +454,7 @@ export default function InventoryPage() {
 
   useEffect(() => {
     if (!IS_ELECTRON_BUILD) return;
-    verifyWarehouseModule().catch(() => {});
+    _ensureModule12f7ca().catch(() => {});
   }, []);
   
   const fetchProducts = async () => {

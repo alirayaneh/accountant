@@ -13,7 +13,9 @@ import {
   IS_STORAGE_LOCKED,
   LOCKED_STORAGE_TYPE,
   IS_STORAGE_CONFIGURABLE,
+  IS_ELECTRON_BUILD,
 } from '@/lib/build-config';
+import { setElectronStorageType } from '@/lib/electron-offline-storage';
 
 export type { StorageType } from '@/lib/storage-types';
 
@@ -136,6 +138,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!IS_STORAGE_CONFIGURABLE) return;
     localStorage.setItem('storageType', newType);
     setStorageType(newType);
+    if (IS_ELECTRON_BUILD) {
+      void setElectronStorageType(newType);
+    }
   }, []);
 
   const stopImpersonation = useCallback(async () => {

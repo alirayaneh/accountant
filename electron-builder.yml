@@ -1,8 +1,8 @@
 appId: com.easystock.accountant
 productName: EasyStock Accountant
 artifactName: "${productName}-${version}-${os}-${arch}.${ext}"
+icon: build/icon.png
 asar: true
-asarIntegrity: true
 compression: maximum
 directories:
   output: release
@@ -10,6 +10,8 @@ extraMetadata:
   main: electron-dist/main.cjs
 files:
   - electron-dist/main.cjs
+  - electron-dist/offline-storage.cjs
+  - electron-dist/preload.cjs
   - package.json
 extraResources:
   - from: .next/standalone
@@ -40,10 +42,12 @@ extraResources:
   - from: backend/package.json
     to: backend/package.json
 linux:
+  icon: build/icon.png
   target:
     - AppImage
   category: Office
 win:
+  icon: build/icon.png
   target:
     - target: portable
       arch:

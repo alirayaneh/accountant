@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Trash2, PlusCircle, Users, Database, Loader2, Store, Banknote, Tag, Pencil, KeyRound } from 'lucide-react';
+import { Trash2, PlusCircle, Users, Database, Loader2, Store, Banknote, Tag, Pencil, KeyRound, FolderOpen } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -38,6 +38,14 @@ import { LicenseSettingsForm } from '@/components/license/license-settings-form'
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getLocalApiURL, getRemoteApiURL } from '@/lib/api-url';
+import {
+  applyOfflineStorageFolder,
+  getOfflineStorageInfo,
+  isElectronOfflineStorageAvailable,
+  restoreOfflineDatabase,
+  selectOfflineStorageFolder,
+} from '@/lib/electron-offline-storage';
+import type { OfflineStorageInfo } from '@/types/electron';
 import {
   Dialog,
   DialogContent,
@@ -539,20 +547,112 @@ function StorageSettingsForm() {
   const [testedStorageType, setTestedStorageType] = useState<StorageType | null>(null);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [offlineStorageInfo, setOfflineStorageInfo] = useState<OfflineStorageInfo | null>(null);
+  const [pendingFolderPath, setPendingFolderPath] = useState<string | null>(null);
+  const [isFolderConfirmOpen, setIsFolderConfirmOpen] = useState(false);
+  const [isRestoreConfirmOpen, setIsRestoreConfirmOpen] = useState(false);
+  const [isApplyingFolder, setIsApplyingFolder] = useState(false);
+  const [isRestoringDatabase, setIsRestoringDatabase] = useState(false);
 
   const storageOptions = [
-    { value: 'sqlite' as const, label: 'SQLite (محلی)', desc: 'Backend API + SQLite — قابل حمل' },
+    { value: 'sqlite' as const, label: 'آفلاین', desc: 'ذخیره‌سازی محلی روی درایو یا پوشه دلخواه' },
     { value: 'online' as const, label: 'آنلاین (سرور)', desc: 'Backend API + MySQL روی سرور' },
   ].filter((option) => ALLOWED_STORAGE_TYPES.includes(option.value));
+
+  const showOfflineFolderSettings = IS_ELECTRON_BUILD
+    && isElectronOfflineStorageAvailable()
+    && (storageType === 'sqlite' || pendingStorageType === 'sqlite');
+
+  const loadOfflineStorageInfo = useCallback(async () => {
+    if (!showOfflineFolderSettings) {
+      setOfflineStorageInfo(null);
+      return;
+    }
+    try {
+      const info = await getOfflineStorageInfo();
+      setOfflineStorageInfo(info);
+    } catch (error) {
+      console.error('Failed to load offline storage info:', error);
+    }
+  }, [showOfflineFolderSettings]);
 
   useEffect(() => {
     setPendingStorageType(storageType);
     setTestedStorageType(null);
   }, [storageType]);
 
+  useEffect(() => {
+    void loadOfflineStorageInfo();
+  }, [loadOfflineStorageInfo]);
+
   const getApiURL = (value: StorageType) => (
     value === 'online' ? getRemoteApiURL() : getLocalApiURL()
   );
+
+  const handleSelectOfflineFolder = async () => {
+    try {
+      const folderPath = await selectOfflineStorageFolder();
+      if (!folderPath) {
+        return;
+      }
+      setPendingFolderPath(folderPath);
+      setIsFolderConfirmOpen(true);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'انتخاب پوشه ناموفق بود',
+        description: error instanceof Error ? error.message : 'پوشه انتخاب نشد.',
+      });
+    }
+  };
+
+  const confirmOfflineFolderChange = async () => {
+    if (!pendingFolderPath) {
+      return;
+    }
+
+    setIsApplyingFolder(true);
+    try {
+      await applyOfflineStorageFolder(pendingFolderPath);
+      setIsFolderConfirmOpen(false);
+      setPendingFolderPath(null);
+      toast({
+        title: 'محل ذخیره‌سازی آفلاین تغییر کرد',
+        description: 'دیتابیس و فایل‌های آپلود به پوشه جدید کپی شدند.',
+      });
+      window.location.reload();
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'تغییر محل ذخیره‌سازی ناموفق بود',
+        description: error instanceof Error ? error.message : 'کپی دیتابیس به پوشه جدید انجام نشد.',
+      });
+    } finally {
+      setIsApplyingFolder(false);
+    }
+  };
+
+  const confirmRestoreOfflineDatabase = async () => {
+    setIsRestoringDatabase(true);
+    try {
+      const info = await restoreOfflineDatabase();
+      setIsRestoreConfirmOpen(false);
+      setOfflineStorageInfo(info);
+      toast({
+        title: 'بازیابی موفق بود',
+        description: 'آخرین نسخه پشتیبان به محل ذخیره‌سازی کپی شد.',
+      });
+      window.location.reload();
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'بازیابی ناموفق بود',
+        description: error instanceof Error ? error.message : 'کپی نسخه پشتیبان انجام نشد.',
+      });
+    } finally {
+      setIsRestoringDatabase(false);
+    }
+  };
 
   const testStorageConnection = async () => {
     const option = storageOptions.find(o => o.value === pendingStorageType);
@@ -629,7 +729,7 @@ function StorageSettingsForm() {
   const hasPendingChange = pendingStorageType !== storageType;
 
   return (
-    <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+    <>
       <div className="space-y-4">
         <div className="space-y-2">
           <Label>محل ذخیره‌سازی</Label>
@@ -644,6 +744,85 @@ function StorageSettingsForm() {
             </SelectContent>
           </Select>
         </div>
+
+        {showOfflineFolderSettings && (
+          <div className="space-y-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">محل ذخیره‌سازی آفلاین (الزامی)</p>
+              <p className="text-xs text-muted-foreground">
+                دیتابیس و فایل‌های آپلود باید در پوشه‌ای خارج از محل نصب برنامه ذخیره شوند تا با نصب نسخه جدید، داده‌های شما از بین نرود.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="offline-storage-path">پوشه فعال</Label>
+              <Input
+                id="offline-storage-path"
+                readOnly
+                value={
+                  offlineStorageInfo?.requiresCustomDataDir
+                    ? 'هنوز انتخاب نشده (الزامی)'
+                    : (offlineStorageInfo?.activeDir || 'در حال بارگذاری...')
+                }
+                dir="ltr"
+                className="font-mono text-xs"
+              />
+            </div>
+
+            {offlineStorageInfo?.configuredButForbidden && (
+              <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm">
+                <p className="font-medium text-destructive">محل ذخیره‌سازی فعلی داخل پوشه نصب برنامه است.</p>
+                <p className="mt-1 text-muted-foreground">
+                  لطفاً پوشه جدیدی خارج از محل نصب برنامه انتخاب کنید.
+                </p>
+              </div>
+            )}
+
+            {offlineStorageInfo?.requiresCustomDataDir && !offlineStorageInfo?.configuredButForbidden && (
+              <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
+                <p className="font-medium text-amber-700 dark:text-amber-300">
+                  انتخاب پوشه ذخیره‌سازی برای حالت آفلاین الزامی است.
+                </p>
+              </div>
+            )}
+
+            {offlineStorageInfo?.missingDb && !offlineStorageInfo?.requiresCustomDataDir && (
+              <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm">
+                <p className="font-medium text-destructive">فایل دیتابیس در محل ذخیره‌سازی یافت نشد.</p>
+                <p className="mt-1 text-muted-foreground">
+                  {offlineStorageInfo.hasBackup
+                    ? 'می‌توانید آخرین نسخه پشتیبان را به این محل کپی کنید.'
+                    : 'نسخه پشتیبان موجود نیست.'}
+                </p>
+                {offlineStorageInfo.hasBackup && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => setIsRestoreConfirmOpen(true)}
+                    disabled={isRestoringDatabase}
+                  >
+                    {isRestoringDatabase && <Loader2 className="ms-2 h-4 w-4 animate-spin" />}
+                    بازیابی از پشتیبان
+                  </Button>
+                )}
+              </div>
+            )}
+
+            <Button
+              type="button"
+              variant={offlineStorageInfo?.requiresCustomDataDir ? 'default' : 'outline'}
+              onClick={handleSelectOfflineFolder}
+              disabled={isApplyingFolder || storageType !== 'sqlite'}
+            >
+              {isApplyingFolder
+                ? <Loader2 className="ms-2 h-4 w-4 animate-spin" />
+                : <FolderOpen className="ms-2 h-4 w-4" />}
+              {offlineStorageInfo?.requiresCustomDataDir ? 'انتخاب محل ذخیره‌سازی' : 'انتخاب محل دلخواه'}
+            </Button>
+          </div>
+        )}
 
         <div className="min-h-20 rounded-md border bg-muted/30 p-3 text-sm">
           <p className="font-medium">
@@ -708,21 +887,60 @@ function StorageSettingsForm() {
         </p>
       </div>
 
-      <AlertDialogContent dir="rtl">
-        <AlertDialogHeader>
-          <AlertDialogTitle>تغییر محل ذخیره‌سازی تایید شود؟</AlertDialogTitle>
-          <AlertDialogDescription>
-            اتصال به {selectedOption?.label || pendingStorageType} موفق بود. با تایید، محل ذخیره‌سازی برنامه تغییر می‌کند و صفحه برای بارگذاری دیتابیس جدید تازه‌سازی می‌شود.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>انصراف</AlertDialogCancel>
-          <AlertDialogAction onClick={confirmStorageChange}>
-            تایید و اعمال تغییر
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>تغییر محل ذخیره‌سازی تایید شود؟</AlertDialogTitle>
+            <AlertDialogDescription>
+              اتصال به {selectedOption?.label || pendingStorageType} موفق بود. با تایید، محل ذخیره‌سازی برنامه تغییر می‌کند و صفحه برای بارگذاری دیتابیس جدید تازه‌سازی می‌شود.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>انصراف</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmStorageChange}>
+              تایید و اعمال تغییر
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isFolderConfirmOpen} onOpenChange={setIsFolderConfirmOpen}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>تغییر محل ذخیره‌سازی آفلاین</AlertDialogTitle>
+            <AlertDialogDescription>
+              دیتابیس و فایل‌های آپلود به پوشه انتخاب‌شده کپی می‌شوند. برنامه مجدداً راه‌اندازی می‌شود.
+              {pendingFolderPath && (
+                <span className="mt-2 block font-mono text-xs" dir="ltr">{pendingFolderPath}</span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isApplyingFolder}>انصراف</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmOfflineFolderChange} disabled={isApplyingFolder}>
+              {isApplyingFolder ? 'در حال کپی...' : 'تایید و اعمال'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isRestoreConfirmOpen} onOpenChange={setIsRestoreConfirmOpen}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>بازیابی از پشتیبان</AlertDialogTitle>
+            <AlertDialogDescription>
+              فایل دیتابیس در محل ذخیره‌سازی یافت نشد. آیا می‌خواهید آخرین نسخه پشتیبان به این محل کپی شود؟
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isRestoringDatabase}>انصراف</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRestoreOfflineDatabase} disabled={isRestoringDatabase}>
+              {isRestoringDatabase ? 'در حال بازیابی...' : 'تایید و بازیابی'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -733,8 +951,8 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get('tab');
-    if (tab === 'license') {
-      setActiveTab('license');
+    if (tab === 'license' || tab === 'data-storage') {
+      setActiveTab(tab);
     }
   }, []);
 
@@ -790,7 +1008,7 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle>محل ذخیره‌سازی داده‌ها</CardTitle>
               <CardDescription>
-                انتخاب بین SQLite محلی (قابل حمل) یا سرور آنلاین با MySQL.
+                انتخاب بین ذخیره‌سازی آفلاین (محلی و خارج از محل نصب) یا سرور آنلاین با MySQL.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-8">

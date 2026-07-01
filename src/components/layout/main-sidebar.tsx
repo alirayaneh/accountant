@@ -17,6 +17,7 @@ import {
   Shield,
   Package,
   BarChart3,
+  Sparkles,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -36,6 +37,7 @@ import { Button } from '../ui/button';
 import { ThemeSwitcher } from './theme-switcher';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { cn } from '@/lib/utils';
+import { IS_ELECTRON_BUILD } from '@/lib/build-config';
 
 type NavItem = {
   href: string;
@@ -83,6 +85,10 @@ const navGroups: { label: string; items: NavItem[] }[] = [
 
 const adminMenuItems: NavItem[] = [
   { href: '/dashboard/admin/users', label: 'مدیریت کاربران', icon: Shield },
+];
+
+const electronMenuItems: NavItem[] = [
+  { href: '/dashboard/news', label: 'تازه‌ها', icon: Sparkles },
 ];
 
 export function MainSidebar() {
@@ -164,6 +170,16 @@ export function MainSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
         ))}
+        {IS_ELECTRON_BUILD && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-xs text-muted-foreground">
+              تازه‌ها
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>{electronMenuItems.map(renderNavItem)}</SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
         {user?.role === 'superadmin' && (
           <SidebarGroup>
             <SidebarGroupLabel className="text-xs text-muted-foreground">

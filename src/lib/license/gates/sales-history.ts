@@ -1,5 +1,5 @@
 import { assertLicenseValid } from '../engine';
 
-export async function checkSalesReportGate(): Promise<void> {
+export async function _assertModuled25eee(): Promise<void> {
   await assertLicenseValid();
 }
