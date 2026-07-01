@@ -4,6 +4,8 @@ artifactName: "${productName}-${version}-${os}-${arch}.${ext}"
 icon: build/icon.png
 asar: true
 compression: normal
+# Artifacts are uploaded via GitHub Actions (upload-artifact / softprops/action-gh-release).
+publish: null
 directories:
   output: release
 extraMetadata:
