@@ -13,7 +13,7 @@
     "obfuscate:next:electron": "node scripts/obfuscate-next-electron.mjs",
     "build:backend": "node scripts/build-backend.mjs",
     "build:electron:main": "node scripts/build-electron-main.mjs",
-    "generate:electron:icons": "python3 scripts/generate-electron-icons.py",
+    "generate:electron:icons": "node scripts/run-python-script.mjs generate-electron-icons.py",
     "rebuild:electron:natives": "node scripts/rebuild-electron-natives.mjs",
     "build:electron:assets": "npm run generate:electron:icons && npm run build:backend && npm run build:web:electron && npm run build:electron:main && npm run rebuild:electron:natives",
     "dist:linux": "npm run build:electron:assets && electron-builder --linux AppImage",

@@ -48,7 +48,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAppContext } from '@/components/app-provider';
 import { IS_ELECTRON_BUILD } from '@/lib/build-config';
-import { _resolveModuledfca56 } from '@/lib/license/gates/expenses';
+import { _ensureModulea44633 } from '@/lib/license/gates/expenses';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PersianDate, PersianDatePicker } from '@/components/persian-date';
 import { Badge } from '@/components/ui/badge';
@@ -600,7 +600,7 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     if (!IS_ELECTRON_BUILD) return;
-    _resolveModuledfca56().catch(() => {});
+    _ensureModulea44633().catch(() => {});
   }, []);
 
   const fetchExpenses = async () => {

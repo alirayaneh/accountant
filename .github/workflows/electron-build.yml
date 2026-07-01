@@ -2,21 +2,77 @@ name: Electron Build
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, light-desk]
+    tags: ['v*']
   pull_request:
-    branches: [main, master]
+    branches: [main, master, light-desk]
   workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform to build
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - linux
+          - win
+
+concurrency:
+  group: electron-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CI: true
 
 jobs:
   build-linux:
+    name: Linux AppImage
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      github.event.inputs.platform == 'all' ||
+      github.event.inputs.platform == 'linux'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: pip install pillow
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            libfuse2 \
+            libgtk-3-0 \
+            libnotify4 \
+            libnss3 \
+            libxss1 \
+            libxtst6 \
+            xdg-utils \
+            libatspi2.0-0 \
+            libdrm2 \
+            libgbm1
 
       - name: Install root dependencies
         run: npm ci
@@ -24,24 +80,52 @@ jobs:
       - name: Install backend dependencies
         run: npm ci
         working-directory: backend
+
+      - name: Desktop hygiene check
+        run: npm run check:desktop-hygiene
 
       - name: Build Linux AppImage
         run: npm run dist:linux
 
-      - uses: actions/upload-artifact@v4
+      - name: List release artifacts
+        run: ls -lah release/
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: easystock-linux
+          name: easystock-linux-${{ github.sha }}
           path: release/*.AppImage
+          if-no-files-found: error
+          retention-days: 30
 
   build-win:
+    name: Windows portable
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      github.event.inputs.platform == 'all' ||
+      github.event.inputs.platform == 'win'
     runs-on: windows-latest
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: pip install pillow
 
       - name: Install root dependencies
         run: npm ci
@@ -50,10 +134,48 @@ jobs:
         run: npm ci
         working-directory: backend
 
+      - name: Desktop hygiene check
+        run: npm run check:desktop-hygiene
+
       - name: Build Windows portable
         run: npm run dist:win
 
-      - uses: actions/upload-artifact@v4
+      - name: List release artifacts
+        shell: pwsh
+        run: Get-ChildItem -Path release -Recurse | Format-Table Name, Length -AutoSize
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: easystock-win
+          name: easystock-win-${{ github.sha }}
           path: release/*.exe
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-linux, build-win]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: easystock-linux-${{ github.sha }}
+          path: release/linux
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: easystock-win-${{ github.sha }}
+          path: release/win
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/linux/*
+            release/win/*
+          generate_release_notes: true

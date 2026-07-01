@@ -17,7 +17,7 @@ import { StatCard } from '@/components/ui/stat-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatToman } from '@/lib/format';
 import { IS_ELECTRON_BUILD } from '@/lib/build-config';
-import { _checkModule66fecf } from '@/lib/license/gates/reports';
+import { _ensureModule54f2e7 } from '@/lib/license/gates/reports';
 
 type TimeRange = 'all' | 'last_year' | 'this_year' | 'last_month' | 'this_month' | 'last_week' | 'this_week';
 
@@ -40,7 +40,7 @@ export default function ReportsPage() {
 
   useEffect(() => {
     if (!IS_ELECTRON_BUILD) return;
-    _checkModule66fecf().catch(() => {});
+    _ensureModule54f2e7().catch(() => {});
   }, []);
 
   useEffect(() => {
