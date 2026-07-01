@@ -20,6 +20,12 @@
 # production
 /build
 
+# compiled / packaged outputs (never commit)
+/release/
+/deploy-staging/
+/.deploy-work/
+/backend/dist/
+
 # misc
 .DS_Store
 *.pem
@@ -47,3 +53,6 @@ node_modules
 
 # protected electron build output
 /electron-dist/
+
+# user guide build artifacts
+/docs/user-guide/_guide-print.html
