@@ -34,7 +34,7 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { formatPersianDate } from '@/lib/date-utils';
 import { IS_ELECTRON_BUILD } from '@/lib/build-config';
-import { _resolveModule74fa37 } from '@/lib/license/gates/dashboard';
+import { _ensureModuleface20 } from '@/lib/license/gates/dashboard';
 
 export default function FinancialDashboardPage() {
   const { db, isLoading, setGlobalLoading } = useAppContext();
@@ -45,7 +45,7 @@ export default function FinancialDashboardPage() {
 
   useEffect(() => {
     if (!IS_ELECTRON_BUILD) return;
-    _resolveModule74fa37().catch(() => {});
+    _ensureModuleface20().catch(() => {});
   }, []);
 
   useEffect(() => {

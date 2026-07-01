@@ -6,7 +6,6 @@ import fs from 'fs';
 import { createRequire } from 'module';
 import { syncDatabase } from './models';
 
-// Routes
 import authRoutes from './routes/auth';
 import productRoutes from './routes/products';
 import saleRoutes from './routes/sales';
@@ -21,13 +20,29 @@ import uploadRoutes from './routes/upload';
 import userRoutes from './routes/users';
 import licenseRoutes from './routes/license';
 
-// Load environment variables
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 const HOST = process.env.HOST || 'localhost';
+const serveStatic = process.env.SERVE_STATIC === 'true';
 const serveFrontend = process.env.SERVE_FRONTEND === 'true';
+
+function findExistingDir(candidates: string[]) {
+    return candidates.find(candidate => fs.existsSync(candidate) && fs.statSync(candidate).isDirectory());
+}
+
+function resolveStaticDir() {
+    if (process.env.STATIC_DIR) {
+        return path.resolve(process.env.STATIC_DIR);
+    }
+
+    return findExistingDir([
+        path.resolve(process.cwd(), 'out'),
+        path.resolve(process.cwd(), '../out'),
+        path.resolve(__dirname, '../../out'),
+    ]);
+}
 
 function resolveFrontendDir() {
     if (process.env.FRONTEND_DIR) {
@@ -43,11 +58,8 @@ function resolveFrontendDir() {
     return candidates.find(candidate => fs.existsSync(path.join(candidate, '.next', 'required-server-files.json'))) || candidates[0];
 }
 
+const staticDir = resolveStaticDir();
 const frontendDir = resolveFrontendDir();
-
-function findExistingDir(candidates: string[]) {
-    return candidates.find(candidate => fs.existsSync(candidate) && fs.statSync(candidate).isDirectory());
-}
 
 function resolveFrontendStaticDir() {
     if (process.env.FRONTEND_STATIC_DIR) {
@@ -105,20 +117,18 @@ async function prepareFrontend(): Promise<NextRequestHandler | null> {
     return nextApp.getRequestHandler();
 }
 
-function mountFrontendAssets() {
+function mountStandaloneFrontendAssets() {
     if (!serveFrontend) {
         return;
     }
 
-    const staticDir = resolveFrontendStaticDir();
-    if (staticDir) {
-        app.use('/_next/static', express.static(staticDir, {
+    const assetsDir = resolveFrontendStaticDir();
+    if (assetsDir) {
+        app.use('/_next/static', express.static(assetsDir, {
             immutable: true,
             maxAge: '1y',
         }));
-        console.log(`✓ Frontend static assets: ${staticDir}`);
-    } else {
-        console.warn('⚠ Frontend static assets not found. Run next build and keep .next/static available.');
+        console.log(`✓ Frontend static assets: ${assetsDir}`);
     }
 
     const publicDir = resolveFrontendPublicDir();
@@ -130,7 +140,43 @@ function mountFrontendAssets() {
     }
 }
 
-// Middleware
+function mountStaticFrontendRoutes() {
+    if (!staticDir || !fs.existsSync(staticDir)) {
+        throw new Error(`Static frontend not found at ${staticDir}. Run the Electron web build first.`);
+    }
+
+    app.use(express.static(staticDir, {
+        index: false,
+        maxAge: '1h',
+    }));
+
+    app.get('*', (req, res, next) => {
+        if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path === '/health') {
+            return next();
+        }
+
+        const normalized = req.path.endsWith('/') ? req.path : `${req.path}/`;
+        const candidates = [
+            path.join(staticDir, normalized, 'index.html'),
+            path.join(staticDir, req.path, 'index.html'),
+            path.join(staticDir, `${req.path}.html`),
+            path.join(staticDir, '404.html'),
+            path.join(staticDir, 'index.html'),
+        ];
+
+        for (const candidate of candidates) {
+            if (fs.existsSync(candidate)) {
+                const status = candidate.endsWith(`${path.sep}404.html`) ? 404 : 200;
+                return res.status(status).sendFile(candidate);
+            }
+        }
+
+        return next();
+    });
+
+    console.log(`✓ Static frontend: ${staticDir}`);
+}
+
 app.use(cors({
     origin: process.env.FRONTEND_URL || 'http://localhost:9002',
     credentials: true
@@ -139,12 +185,13 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Serve uploaded files
 const uploadDir = process.env.UPLOAD_DIR || './uploads';
 app.use('/uploads', express.static(path.resolve(uploadDir)));
-mountFrontendAssets();
 
-// API Routes
+if (!serveStatic) {
+    mountStandaloneFrontendAssets();
+}
+
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/sales', saleRoutes);
@@ -162,12 +209,10 @@ if (process.env.LICENSE_ENABLED === 'true') {
     app.use('/api/license', licenseRoutes);
 }
 
-// Health check endpoint
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Root endpoint, only used when the frontend is not served by this process.
 app.get('/api', (req, res) => {
     res.json({
         message: 'EasyStock Backend API',
@@ -189,12 +234,13 @@ app.get('/api', (req, res) => {
     });
 });
 
-// Start server
 const startServer = async () => {
     try {
-        const nextHandler = await prepareFrontend();
+        const nextHandler = serveFrontend ? await prepareFrontend() : null;
 
-        if (nextHandler) {
+        if (serveStatic) {
+            mountStaticFrontendRoutes();
+        } else if (nextHandler) {
             app.all('*', async (req, res) => {
                 await nextHandler(req, res);
             });
@@ -203,13 +249,11 @@ const startServer = async () => {
                 res.redirect('/api');
             });
 
-            // 404 handler for API-only mode.
             app.use((req, res) => {
                 res.status(404).json({ error: 'Endpoint not found' });
             });
         }
 
-        // Error handling middleware
         app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
             console.error('Error:', err);
 
@@ -231,21 +275,27 @@ const startServer = async () => {
             process.exit(1);
         }
 
-        // Sync database
-        await syncDatabase();
-        console.log('✓ Database synced successfully');
-
-        // Start listening
-        app.listen(PORT, () => {
+        app.listen(PORT, HOST, () => {
             console.log(`✓ Server running on port ${PORT}`);
             console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
             console.log(`✓ Database type: sqlite`);
             console.log(`✓ API available at: http://localhost:${PORT}`);
             console.log(`✓ Health check: http://localhost:${PORT}/health`);
-            if (nextHandler) {
+            if (serveStatic) {
+                console.log(`✓ Static frontend available at: http://${HOST}:${PORT}`);
+            } else if (nextHandler) {
                 console.log(`✓ Frontend available at: http://${HOST}:${PORT}`);
             }
         });
+
+        syncDatabase()
+            .then(() => {
+                console.log('✓ Database synced successfully');
+            })
+            .catch((error) => {
+                console.error('Failed to sync database:', error);
+                process.exit(1);
+            });
     } catch (error) {
         console.error('Failed to start server:', error);
         process.exit(1);

@@ -29,4 +29,3 @@ const electronEnv = {
 };
 
 run(process.execPath, [nextBin, 'build'], electronEnv);
-run(process.execPath, [path.join(root, 'scripts', 'obfuscate-next-electron.mjs')]);

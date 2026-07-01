@@ -1,17 +1,17 @@
-
 import type { NextConfig } from 'next';
+
+const isElectronBuild = process.env.NEXT_PUBLIC_IS_ELECTRON === 'true';
 
 const withPWA = require('@ducanh2912/next-pwa').default({
   dest: 'public',
   register: true,
   skipWaiting: true,
-  disable: process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_IS_ELECTRON === 'true',
+  disable: process.env.NODE_ENV === 'development' || isElectronBuild,
 });
 
-
 const nextConfig: NextConfig = {
-  /* config options here */
-  output: 'standalone',
+  output: isElectronBuild ? 'export' : 'standalone',
+  trailingSlash: isElectronBuild ? true : undefined,
   productionBrowserSourceMaps: false,
   typescript: {
     ignoreBuildErrors: true,
@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
+    unoptimized: isElectronBuild,
     remotePatterns: [
       {
         protocol: 'https',

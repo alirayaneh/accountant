@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { Suspense, useState, useEffect, useMemo } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,13 +17,14 @@ import { PageHeader } from '@/components/layout/page-header';
 import { StatCard } from '@/components/ui/stat-card';
 import { formatToman } from '@/lib/format';
 import { IS_ELECTRON_BUILD } from '@/lib/build-config';
-import { _resolveModulec950ae } from '@/lib/license/gates/products-detail';
+import { _validateModule12b00e } from '@/lib/license/gates/products-detail';
 
-export default function ProductProfilePage() {
-  const { id } = useParams();
+function ProductProfileContent() {
+  const searchParams = useSearchParams();
+  const id = searchParams.get('id');
   const router = useRouter();
   const { db, setGlobalLoading, isLoading } = useAppContext();
-  
+
   const [product, setProduct] = useState<Product | null>(null);
   const [sales, setSales] = useState<Sale[]>([]);
   const [exchangeRates, setExchangeRates] = useState<ExchangeRate[]>([]);
@@ -31,7 +32,7 @@ export default function ProductProfilePage() {
 
   useEffect(() => {
     if (!IS_ELECTRON_BUILD) return;
-    _resolveModulec950ae().catch(() => {});
+    _validateModule12b00e().catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -40,9 +41,8 @@ export default function ProductProfilePage() {
     const fetchProductData = async () => {
       setGlobalLoading(true);
       try {
-        const productId = Array.isArray(id) ? id[0] : id;
         const [productData, allSales, rates] = await Promise.all([
-          db.getProductById(productId),
+          db.getProductById(id),
           db.getAllSales(),
           db.getExchangeRates(),
         ]);
@@ -54,7 +54,7 @@ export default function ProductProfilePage() {
         setExchangeRates(rates);
 
         const productSales = allSales.filter(sale =>
-          sale.items.some(item => item.productId === productId)
+          sale.items.some(item => item.productId === id)
         );
         setSales(productSales);
       } catch (error) {
@@ -69,7 +69,7 @@ export default function ProductProfilePage() {
 
   const stats = useMemo(() => {
     if (!product) return { totalSold: 0, totalRevenue: 0, grossProfit: 0 };
-    
+
     let totalSoldCount = 0;
     let totalRevenue = 0;
     let grossProfit = 0;
@@ -86,6 +86,14 @@ export default function ProductProfilePage() {
 
     return { totalSold: totalSoldCount, totalRevenue, grossProfit };
   }, [product, sales]);
+
+  if (!id) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-48 w-full" />
+      </div>
+    );
+  }
 
   if (isLoading || !product) {
     return (
@@ -166,7 +174,7 @@ export default function ProductProfilePage() {
         <StatCard label="درآمد ناخالص" value={formatToman(stats.totalRevenue)} icon={DollarSign} />
         <StatCard label="سود ناخالص" value={formatToman(stats.grossProfit)} icon={TrendingUp} trendUp={stats.grossProfit >= 0} />
       </div>
-      
+
       <Card variant="glass">
           <CardHeader>
               <CardTitle>تاریخچه فروش</CardTitle>
@@ -208,5 +216,25 @@ export default function ProductProfilePage() {
       </Card>
 
     </div>
+  );
+}
+
+export default function ProductProfilePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-6">
+          <Skeleton className="h-48 w-full" />
+          <div className="grid gap-4 md:grid-cols-3">
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </div>
+          <Skeleton className="h-96 w-full" />
+        </div>
+      }
+    >
+      <ProductProfileContent />
+    </Suspense>
   );
 }

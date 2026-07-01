@@ -15,7 +15,7 @@
     "build:electron:main": "node scripts/build-electron-main.mjs",
     "generate:electron:icons": "node scripts/run-python-script.mjs generate-electron-icons.py",
     "rebuild:electron:natives": "node scripts/rebuild-electron-natives.mjs",
-    "build:electron:assets": "npm run generate:electron:icons && npm run build:backend && npm run build:web:electron && npm run build:electron:main && npm run rebuild:electron:natives",
+    "build:electron:assets": "node scripts/build-electron-assets.mjs",
     "dist:linux": "npm run build:electron:assets && electron-builder --linux AppImage",
     "dist:linux:pack": "electron-builder --linux AppImage",
     "dist:win": "npm run build:electron:assets && electron-builder --win portable",

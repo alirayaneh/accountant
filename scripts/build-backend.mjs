@@ -26,5 +26,9 @@ await esbuild.build({
   logLevel: 'info',
 });
 
-obfuscateFile(outfile);
-console.log('Protected backend build complete.');
+if (process.env.DESKTOP_FAST_BUILD !== 'true') {
+  obfuscateFile(outfile);
+  console.log('Protected backend build complete.');
+} else {
+  console.log('Fast desktop backend build complete.');
+}

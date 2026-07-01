@@ -62,7 +62,7 @@ import { ProductMediaManager } from '@/components/product-media-manager';
 import type { ProductMedia } from '@/lib/types';
 import { PageHeader } from '@/components/layout/page-header';
 import { IS_ELECTRON_BUILD } from '@/lib/build-config';
-import { _resolveModule484a33 } from '@/lib/license/gates/record-sale';
+import { _ensureModule5b20cf } from '@/lib/license/gates/record-sale';
 
 const paymentMethodLabels: Record<PaymentMethod, string> = {
     CASH: 'نقد',
@@ -267,7 +267,7 @@ export default function RecordSalePage() {
 
   useEffect(() => {
     if (!IS_ELECTRON_BUILD) return;
-    _resolveModule484a33().catch(() => {});
+    _ensureModule5b20cf().catch(() => {});
   }, []);
 
   const [customers, setCustomers] = useState<Customer[]>([]);

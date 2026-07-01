@@ -13,6 +13,11 @@ let logFilePath = null;
 let storageManager = null;
 let mainWindow = null;
 let splashWindow = null;
+let startupT0 = Date.now();
+
+function startupMs() {
+  return Date.now() - startupT0;
+}
 
 const SPLASH_WIDTH = 960;
 const SPLASH_HEIGHT = 536;
@@ -320,9 +325,9 @@ async function startServers() {
   ensureDir(paths.uploadDir);
 
   const backendScript = getResourcePath('backend', 'dist', 'server.js');
-  const frontendDir = getResourcePath('next');
+  const staticDir = getResourcePath('static');
 
-  if (!fs.existsSync(backendScript) || !fs.existsSync(path.join(frontendDir, 'server.js'))) {
+  if (!fs.existsSync(backendScript) || !fs.existsSync(path.join(staticDir, 'index.html'))) {
     throw new Error('Electron build assets are missing. Run npm run build:electron:assets first.');
   }
 
@@ -339,8 +344,8 @@ async function startServers() {
       UPLOAD_DIR: paths.uploadDir,
       SQLITE_REQUIRE_EXISTS: requireExistingDb ? 'true' : 'false',
       SESSION_SECRET: 'easystock-electron-local-session',
-      SERVE_FRONTEND: 'true',
-      FRONTEND_DIR: frontendDir,
+      SERVE_STATIC: 'true',
+      STATIC_DIR: staticDir,
       NEXT_PUBLIC_LOCAL_API_URL: `http://127.0.0.1:${APP_PORT}`,
       LICENSE_ENABLED: 'true',
       LICENSE_SERVER_URL: process.env.LICENSE_SERVER_URL || 'https://license.yourdomain.com/api/v1',
@@ -351,11 +356,26 @@ async function startServers() {
   });
 
   await waitForUrl(`http://127.0.0.1:${APP_PORT}/health`, 60000, backendChild);
-  await waitForUrl(`http://127.0.0.1:${APP_PORT}`, 60000, backendChild);
+  log(`timing: backend health ok +${startupMs()}ms`);
+}
 
-  if (fs.existsSync(paths.dbPath)) {
-    manager.updateBackupFromActive();
-  }
+function scheduleBackupInBackground() {
+  setImmediate(() => {
+    try {
+      const manager = getStorageManager();
+      const activeDir = manager.getActiveDataDir();
+      if (!activeDir) {
+        return;
+      }
+      const paths = manager.getPaths(activeDir);
+      if (fs.existsSync(paths.dbPath)) {
+        manager.updateBackupFromActive();
+        log(`timing: background backup finished +${startupMs()}ms`);
+      }
+    } catch (error) {
+      log('Background backup failed', error);
+    }
+  });
 }
 
 function stopChildren() {
@@ -396,6 +416,7 @@ function createWindow() {
 
   mainWindow = win;
   win.once('ready-to-show', () => {
+    log(`timing: window ready-to-show +${startupMs()}ms`);
     closeSplashWindow();
     if (!win.isDestroyed()) {
       win.show();
@@ -487,27 +508,32 @@ function registerIpcHandlers() {
 }
 
 app.whenReady().then(async () => {
+  startupT0 = Date.now();
   Menu.setApplicationMenu(null);
   logFilePath = path.join(app.getPath('userData'), 'startup.log');
-  log('App starting');
+  log(`App starting (timing t0)`);
+  createSplashWindow();
   registerIpcHandlers();
 
   try {
     const folderReady = await ensureCustomStorageFolder();
+    log(`timing: storage folder ready +${startupMs()}ms`);
     if (!folderReady) {
       app.quit();
       return;
     }
 
     const ready = await ensureDatabaseReady();
+    log(`timing: database ready +${startupMs()}ms`);
     if (!ready) {
       app.quit();
       return;
     }
 
-    createSplashWindow();
     await startServers();
     createWindow();
+    log(`timing: main window created +${startupMs()}ms`);
+    scheduleBackupInBackground();
   } catch (error) {
     closeSplashWindow();
     const logHint = logFilePath ? `\n\nSee log: ${logFilePath}` : '';

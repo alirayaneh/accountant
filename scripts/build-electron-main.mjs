@@ -28,9 +28,11 @@ for (const file of electronFiles) {
   const source = path.join(root, 'electron', file);
   const output = path.join(outDir, file);
   fs.copyFileSync(source, output);
-  if (file === 'main.cjs') {
+  if (file === 'main.cjs' && process.env.DESKTOP_FAST_BUILD !== 'true') {
     obfuscateFile(output);
   }
 }
 
-console.log('Protected Electron main process build complete.');
+console.log(process.env.DESKTOP_FAST_BUILD === 'true'
+  ? 'Electron main process build complete.'
+  : 'Protected Electron main process build complete.');

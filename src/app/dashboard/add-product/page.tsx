@@ -43,7 +43,7 @@ import { ProductMediaManager } from '@/components/product-media-manager';
 import { PageHeader } from '@/components/layout/page-header';
 import { withLegacyImageUrl } from '@/lib/product-media';
 import { IS_ELECTRON_BUILD } from '@/lib/build-config';
-import { _ensureModuleb28ed2 } from '@/lib/license/gates/add-product';
+import { _guardModule2e8609 } from '@/lib/license/gates/add-product';
 
 const mediaSchema = z.object({
   id: z.string(),
@@ -81,7 +81,7 @@ export default function AddProductPage() {
 
   useEffect(() => {
     if (!IS_ELECTRON_BUILD) return;
-    _ensureModuleb28ed2().catch(() => {});
+    _guardModule2e8609().catch(() => {});
   }, []);
 
   useEffect(() => {

@@ -66,7 +66,7 @@ import { getProductCover, getProductMedia, withLegacyImageUrl } from '@/lib/prod
 import { PageHeader } from '@/components/layout/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { IS_ELECTRON_BUILD } from '@/lib/build-config';
-import { _verifyModule1bc383 } from '@/lib/license/gates/inventory';
+import { _verifyModulee8540b } from '@/lib/license/gates/inventory';
 
 const mediaSchema = z.object({
   id: z.string(),
@@ -393,7 +393,7 @@ function ProductCard({
       </CardContent>
       <CardFooter className="flex justify-end gap-2">
          <Button variant="ghost" size="icon" asChild>
-            <Link href={`/dashboard/products/${product.id}`}>
+            <Link href={`/dashboard/products/detail?id=${product.id}`}>
               <BarChart2 className="h-4 w-4" />
             </Link>
           </Button>
@@ -454,7 +454,7 @@ export default function InventoryPage() {
 
   useEffect(() => {
     if (!IS_ELECTRON_BUILD) return;
-    _verifyModule1bc383().catch(() => {});
+    _verifyModulee8540b().catch(() => {});
   }, []);
   
   const fetchProducts = async () => {

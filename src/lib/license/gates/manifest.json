@@ -2,56 +2,56 @@
   {
     "gate": "dashboard",
     "page": "src/app/dashboard/page.tsx",
-    "exportName": "_resolveModule74fa37"
+    "exportName": "_ensureModuleface20"
   },
   {
     "gate": "inventory",
     "page": "src/app/dashboard/inventory/page.tsx",
-    "exportName": "_verifyModule1bc383"
+    "exportName": "_verifyModulee8540b"
   },
   {
     "gate": "add-product",
     "page": "src/app/dashboard/add-product/page.tsx",
-    "exportName": "_ensureModuleb28ed2"
+    "exportName": "_guardModule2e8609"
   },
   {
     "gate": "products-detail",
-    "page": "src/app/dashboard/products/[id]/page.tsx",
-    "exportName": "_resolveModulec950ae"
+    "page": "src/app/dashboard/products/detail/page.tsx",
+    "exportName": "_validateModule12b00e"
   },
   {
     "gate": "record-sale",
     "page": "src/app/dashboard/record-sale/page.tsx",
-    "exportName": "_resolveModule484a33"
+    "exportName": "_ensureModule5b20cf"
   },
   {
     "gate": "sales-history",
     "page": "src/app/dashboard/sales-history/page.tsx",
-    "exportName": "_ensureModuledd36bc"
+    "exportName": "_checkModuleedf655"
   },
   {
     "gate": "payments",
     "page": "src/app/dashboard/payments/page.tsx",
-    "exportName": "_assertModuleca5057"
+    "exportName": "_validateModule815d4c"
   },
   {
     "gate": "expenses",
     "page": "src/app/dashboard/expenses/page.tsx",
-    "exportName": "_ensureModulea44633"
+    "exportName": "_assertModule84d2e6"
   },
   {
     "gate": "customers",
     "page": "src/app/dashboard/customers/page.tsx",
-    "exportName": "_guardModule4423cf"
+    "exportName": "_resolveModulea63d45"
   },
   {
     "gate": "reports",
     "page": "src/app/dashboard/reports/page.tsx",
-    "exportName": "_ensureModule54f2e7"
+    "exportName": "_guardModule3120ac"
   },
   {
     "gate": "admin-users",
     "page": "src/app/dashboard/admin/users/page.tsx",
-    "exportName": "_validateModule7d00c5"
+    "exportName": "_checkModule311548"
   }
 ]

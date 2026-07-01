@@ -69,6 +69,7 @@ async function callLicenseServer<T>(endpoint: string, body: Record<string, unkno
             'X-App-Version': getAppVersion(),
         },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(5000),
     });
 
     if (!response.ok) {
@@ -229,8 +230,14 @@ router.use((_req: Request, res: Response, next) => {
 router.get('/status', async (_req: Request, res: Response) => {
     try {
         let row = await getOrCreateLicenseRow();
-        row = await refreshLicenseIfDue(row);
-        res.json(await buildStatusResponse(row));
+        const quickStatus = await buildStatusResponse(row);
+        res.json(quickStatus);
+
+        if (row.nextCheckAt && row.nextCheckAt.getTime() <= Date.now()) {
+            void refreshLicenseIfDue(row).catch((error) => {
+                console.error('Background license refresh error:', error);
+            });
+        }
     } catch (error) {
         console.error('License status error:', error);
         res.status(500).json({ error: 'Failed to get license status' });
